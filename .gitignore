@@ -1,2 +1,10 @@
 cabal.sandbox.config
 .cabal-sandbox
+*.o
+*_objc.m
+*_objc.h
+*.hi
+*_stub.h
+MacShady
+MacShady.app/Contents/MacOSX/MacShady
+.DS_Store
