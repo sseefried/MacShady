@@ -18,6 +18,17 @@ objc_import ["<Cocoa/Cocoa.h>", "<OpenGL/gl.h>", "HsFFI.h"]
 -- Hooks into Haskell-land
 objc_interface [cunit|
 void msDraw(void);
+void msMouseDown(float x, float y);
+void msMouseUp(float x, float y);
+void msMouseDragged(float x,float y);
+
+void msRightMouseDown(float x, float y);
+void msRightMouseUp(float x, float y);
+void msRightMouseDragged(float x,float y);
+
+void msKeyDown(unsigned short keyCode, unsigned long modifierFlags);
+void msKeyUp(unsigned short keyCode, unsigned long modifierFlags);
+
 |]
 
 
@@ -48,6 +59,79 @@ objc_implementation [] [cunit|
 {
     [super drawRect:dirtyRect];
     msDraw();
+}
+
+- (void)mouseDown:(typename NSEvent *)theEvent
+{
+  if( [theEvent modifierFlags] & NSRightMouseDown )
+  {
+    [self rightMouseDown:theEvent];
+  } else {
+    typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                          fromView:nil];
+    msMouseDown(p.x, p.y);
+  }
+}
+
+- (void)mouseUp:(typename NSEvent *)theEvent
+{
+  if( [theEvent modifierFlags] & NSRightMouseDown )
+  {
+    [self rightMouseUp:theEvent];
+  } else {
+
+    typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                            fromView:nil];
+    msMouseUp(p.x, p.y);
+  }
+}
+
+- (void)mouseDragged:(typename NSEvent *)theEvent
+{
+  if( [theEvent modifierFlags] & NSRightMouseDown )
+  {
+    [self rightMouseDragged:theEvent];
+  } else {
+    typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                            fromView:nil];
+    msMouseDragged(p.x, p.y);
+  }
+}
+
+- (void)rightMouseDown:(typename NSEvent *)theEvent
+{
+  typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                          fromView:nil];
+  msRightMouseDown(p.x, p.y);
+}
+
+- (void)rightMouseUp:(typename NSEvent *)theEvent
+{
+  typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                          fromView:nil];
+  msRightMouseUp(p.x, p.y);
+}
+
+- (void)rightMouseDragged:(typename NSEvent *)theEvent
+{
+  typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
+                          fromView:nil];
+  msRightMouseDragged(p.x, p.y);
+}
+
+- (void)keyDown:(typename NSEvent *)theEvent
+{
+  msKeyDown([theEvent keyCode], [theEvent modifierFlags]);
+}
+
+- (void)keyUp:(typename NSEvent *)theEvent
+{
+  msKeyUp([theEvent keyCode], [theEvent modifierFlags]);
+}
+
+/* This allows key down and key up events */
+- (typename BOOL)acceptsFirstResponder {
+  return YES;
 }
 
 @end
@@ -83,7 +167,6 @@ objc_implementation [] [cunit|
 {
   return YES;
 }
-
 
 @end
 |]
