@@ -52,6 +52,35 @@ objc_implementation [] [cunit|
 typename BOOL initialised = NO;
 
 /*
+ * In order to get GLSL shaders to display you must enable OpenGL "3.2 Core Profile".
+ * This means that we most override awakeFromNib since this is not done by default.
+ */
+- (void)awakeFromNib
+{
+  NSLog(@"awakeFromNIB called");
+  typename NSOpenGLPixelFormatAttribute attrs[] =
+    {
+        // Must specify the 3.2 Core Profile to use OpenGL 3.2
+        NSOpenGLPFAOpenGLProfile,
+        NSOpenGLProfileVersion3_2Core,
+        0
+    };
+
+  typename NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
+
+  if (!pf)
+  {
+      NSLog(@"No OpenGL pixel format");
+  }
+
+  typename NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
+
+  [self setPixelFormat:pf];
+  [self setOpenGLContext:context];
+
+}
+
+/*
  * Note on the used of the 'intialised' variable.
  *
  * When initialising an object using a .nib file
@@ -70,6 +99,7 @@ typename BOOL initialised = NO;
     msInit();
   }
   msDraw();
+  [[self openGLContext] flushBuffer];
 }
 
 - (void)mouseDown:(typename NSEvent *)theEvent

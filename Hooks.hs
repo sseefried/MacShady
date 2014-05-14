@@ -1,11 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hooks where
 
+import           Data.Bits ((.|.))
 import           Foreign.C.Types
 import           Graphics.Rendering.OpenGL.Raw
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import           Foreign.Ptr
+import           Foreign.Ptr (nullPtr, Ptr(..))
+import           Foreign.Marshal.Array
+import           Foreign.Storable (peek)
+import           Foreign.Marshal.Alloc (alloca, allocaBytes)
+import           Foreign.C.String (withCString)
 
 -- friends
 import NSLog
@@ -23,22 +28,56 @@ foreign export ccall msKeyUp             :: CUShort -> CULong -> IO ()
 foreign export ccall msResize            :: CInt    -> CInt  -> IO ()
 
 
+foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
+foo bs f = BS.useAsCString bs $ \s -> withArray [s] $ \arr -> f arr
+
 -- called immediately after OpenGL context established
 msInit :: IO ()
 msInit = do
-  loadShader vertexShader
+  nsLog $ "msInit called"
+  vao <- alloca $ \ptr -> glGenVertexArrays 1 ptr >> peek ptr
+  glBindVertexArray vao
+
+  vbo <- alloca $ \ptr -> glGenBuffers 1 ptr >> peek ptr
+  glBindBuffer gl_ARRAY_BUFFER vbo
+  withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (3 * 3 * 4) ptr gl_STATIC_DRAW
+
+  v <- glCreateShader gl_VERTEX_SHADER
+  foo vertexShaderSource $ \ptr -> glShaderSource v 1 ptr nullPtr
+  glCompileShader v
+
+  f <- glCreateShader gl_FRAGMENT_SHADER
+  foo fragmentShaderSource $ \ptr -> glShaderSource f 1 ptr nullPtr
+  glCompileShader f
+
+  p <- glCreateProgram
+  glAttachShader p v
+  glAttachShader p f
+  BS.useAsCString "position" $ \str -> glBindAttribLocation p 0 str
+  BS.useAsCString "fragmentColor" $ \str -> glBindFragDataLocation p 0 str
+  glLinkProgram p
+  glUseProgram p
+
+  glVertexAttribPointer 0 3 gl_FLOAT 0 0 nullPtr
+  glEnableVertexAttribArray 0
   return ()
+
+drawGoldenTriangle :: IO ()
+drawGoldenTriangle = do
+  glColor3f 1 0.85 0.35
+  glBegin gl_TRIANGLES
+  glVertex3f 0.0 0.6 0.0
+  glVertex3f (-0.2) (-0.3) 0.0
+  glVertex3f 0.2 (-0.3) 0.0
+  glEnd
+  glFlush
 
 msDraw :: IO ()
 msDraw = do
-   glClearColor 0 0 0 0
-   glClear gl_COLOR_BUFFER_BIT
-   glColor3f 1 0.85 0.35
-   glBegin gl_TRIANGLES
-   glVertex3f 0.0 0.6 0.0
-   glVertex3f (-0.2) (-0.3) 0.0
-   glVertex3f 0.2 (-0.3) 0.0
-   glEnd
+   nsLog $ "msDraw called"
+   glClear (gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT)
+--   drawGoldenTriangle
+   glDrawArrays gl_TRIANGLES 0 3
    glFlush
 
 msMouseDown :: CFloat -> CFloat -> IO ()
@@ -79,27 +118,30 @@ msResize w h = do
 
 -------------------
 
-loadShader :: ByteString -> IO GLhandle
-loadShader shaderBS = BS.useAsCString shaderBS $ \shader -> do
-  shaderObject <- glCreateShaderObject gl_VERTEX_SHADER
-  nsLog $ "shaderObject = " ++ show shaderObject
-  return shaderObject
-
-vertexShader :: ByteString
-vertexShader = BS.unlines
-  [ "varying float LightIntensity;"
-  , "uniform vec3  LightPosition;"
-  , ""
+vertexShaderSource :: ByteString
+vertexShaderSource = BS.unlines
+  [ "#version 150"
+  , "in vec3 position;"
   , "void main()"
   , "{"
-  , "  vec4 ECposition = gl_ModelViewMatrix * gl_Vertex;"
-  , "  vec3 tnorm      = normalize(vec3 (gl_NormalMatrix * gl_Normal));"
-  , ""
-  , "  LightIntensity = dot(normalize(LightPosition - vec3 (ECposition)), tnorm) * 1.5;"
-  , ""
-  , "  gl_Position = ftransform();"
-  , ""
-  , "  gl_TexCoord[0]  = gl_MultiTexCoord0;"
-  , "}" ]
+  , "gl_Position = vec4(position, 1);"
+  , "}"
+  ]
 
+fragmentShaderSource :: ByteString
+fragmentShaderSource = BS.unlines
+  [ "#version 150"
+  , "out vec4 fragmentColor;"
+  , "void main()"
+  , "{"
+  , "  fragmentColor = vec4(1, 0.85, 0.35, 1);"
+  , "}"
+  ]
+
+vertexData :: [GLfloat]
+vertexData =
+  [  0.0 ,  0.9 , 0.0
+  , -0.9 , -0.9 , 0.0
+  ,  0.9 , -0.9 , 0.0
+  ]
 

@@ -15,3 +15,7 @@ The nib file was generated in Interface Builder in a skeleton project in Xcode
   - Top Space to Superview
   - Bottom space to Superview
   - Trailing space to Superview
+
+## OpenGL Core Profile 3.2
+
+In order to have the shaders display I had
