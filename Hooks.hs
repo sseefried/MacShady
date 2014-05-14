@@ -1,11 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Hooks where
 
-import Foreign.C.Types
-import Graphics.Rendering.OpenGL.Raw
+import           Foreign.C.Types
+import           Graphics.Rendering.OpenGL.Raw
+import           Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as BS
+import           Foreign.Ptr
 
 -- friends
 import NSLog
 
+foreign export ccall msInit              :: IO ()
 foreign export ccall msDraw              :: IO ()
 foreign export ccall msMouseDown         :: CFloat  -> CFloat -> IO ()
 foreign export ccall msMouseUp           :: CFloat  -> CFloat -> IO ()
@@ -16,6 +21,13 @@ foreign export ccall msRightMouseDragged :: CFloat  -> CFloat -> IO ()
 foreign export ccall msKeyDown           :: CUShort -> CULong -> IO ()
 foreign export ccall msKeyUp             :: CUShort -> CULong -> IO ()
 foreign export ccall msResize            :: CInt    -> CInt  -> IO ()
+
+
+-- called immediately after OpenGL context established
+msInit :: IO ()
+msInit = do
+  loadShader vertexShader
+  return ()
 
 msDraw :: IO ()
 msDraw = do
@@ -64,3 +76,30 @@ msResize w h = do
   let s = min w h
   glViewport ((w - s)`div` 2) ((h - s) `div` 2) s s
   msDraw
+
+-------------------
+
+loadShader :: ByteString -> IO GLhandle
+loadShader shaderBS = BS.useAsCString shaderBS $ \shader -> do
+  shaderObject <- glCreateShaderObject gl_VERTEX_SHADER
+  nsLog $ "shaderObject = " ++ show shaderObject
+  return shaderObject
+
+vertexShader :: ByteString
+vertexShader = BS.unlines
+  [ "varying float LightIntensity;"
+  , "uniform vec3  LightPosition;"
+  , ""
+  , "void main()"
+  , "{"
+  , "  vec4 ECposition = gl_ModelViewMatrix * gl_Vertex;"
+  , "  vec3 tnorm      = normalize(vec3 (gl_NormalMatrix * gl_Normal));"
+  , ""
+  , "  LightIntensity = dot(normalize(LightPosition - vec3 (ECposition)), tnorm) * 1.5;"
+  , ""
+  , "  gl_Position = ftransform();"
+  , ""
+  , "  gl_TexCoord[0]  = gl_MultiTexCoord0;"
+  , "}" ]
+
+

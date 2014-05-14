@@ -17,6 +17,8 @@ objc_import ["<Cocoa/Cocoa.h>", "<OpenGL/gl.h>", "HsFFI.h"]
 
 -- Hooks into Haskell-land
 objc_interface [cunit|
+void msInit(void);
+
 void msDraw(void);
 void msMouseDown(float x, float y);
 void msMouseUp(float x, float y);
@@ -47,19 +49,27 @@ objc_implementation [] [cunit|
 
 @implementation MacShadyGLView
 
-- (id)initWithFrame:(typename NSRect)frame
-{
-    NSLog(@"initWithFrame called");
-    self = [super initWithFrame:frame];
-    if (self) {
-    }
-    return self;
-}
+typename BOOL initialised = NO;
+
+/*
+ * Note on the used of the 'intialised' variable.
+ *
+ * When initialising an object using a .nib file
+ * one can only guarantee that all initialisation has been
+ * done at the point where 'drawRect' is called for the first time.
+ * This forces us to do the rather ugly trick below where we call
+ * 'msInit' only the first time through.
+ *
+ */
 
 - (void)drawRect:(typename NSRect)dirtyRect
 {
-    [super drawRect:dirtyRect];
-    msDraw();
+  [super drawRect:dirtyRect];
+  if (!initialised) {
+    initialised = YES;
+    msInit();
+  }
+  msDraw();
 }
 
 - (void)mouseDown:(typename NSEvent *)theEvent
