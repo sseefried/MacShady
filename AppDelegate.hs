@@ -28,6 +28,7 @@ void msRightMouseDragged(float x,float y);
 
 void msKeyDown(unsigned short keyCode, unsigned long modifierFlags);
 void msKeyUp(unsigned short keyCode, unsigned long modifierFlags);
+void msResize(unsigned int width, unsigned int height);
 
 |]
 
@@ -129,6 +130,13 @@ objc_implementation [] [cunit|
   msKeyUp([theEvent keyCode], [theEvent modifierFlags]);
 }
 
+- (void)reshape
+{
+  [[self openGLContext] update];
+  typename NSRect bounds = [self bounds];
+  msResize(bounds.size.width, bounds.size.height);
+
+}
 /* This allows key down and key up events */
 - (typename BOOL)acceptsFirstResponder {
   return YES;
