@@ -4,6 +4,7 @@ module Hooks where
 import           Data.Bits ((.|.))
 import           Foreign.C.Types
 import           Graphics.Rendering.OpenGL.Raw
+import           Graphics.Rendering.OpenGL
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import           Foreign.Ptr (nullPtr, Ptr(..))
@@ -14,6 +15,7 @@ import           Foreign.C.String (withCString)
 
 -- friends
 import NSLog
+import ShaderUtil
 
 foreign export ccall msInit              :: IO ()
 foreign export ccall msDraw              :: IO ()
@@ -42,21 +44,14 @@ msInit = do
   glBindBuffer gl_ARRAY_BUFFER vbo
   withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (3 * 3 * 4) ptr gl_STATIC_DRAW
 
-  v <- glCreateShader gl_VERTEX_SHADER
-  foo vertexShaderSource $ \ptr -> glShaderSource v 1 ptr nullPtr
-  glCompileShader v
+  (Right vs) <- loadShader VertexShader vertexShaderSource
+  (Right fs) <- loadShader FragmentShader fragmentShaderSource
+  (Right p)  <- linkShaders [vs,fs]
 
-  f <- glCreateShader gl_FRAGMENT_SHADER
-  foo fragmentShaderSource $ \ptr -> glShaderSource f 1 ptr nullPtr
-  glCompileShader f
+  attribLocation p "position" $= AttribLocation 0
+  bindFragDataLocation p "fragmentColor" $= 0
 
-  p <- glCreateProgram
-  glAttachShader p v
-  glAttachShader p f
-  BS.useAsCString "position" $ \str -> glBindAttribLocation p 0 str
-  BS.useAsCString "fragmentColor" $ \str -> glBindFragDataLocation p 0 str
-  glLinkProgram p
-  glUseProgram p
+  currentProgram $= Just p
 
   glVertexAttribPointer 0 3 gl_FLOAT 0 0 nullPtr
   glEnableVertexAttribArray 0

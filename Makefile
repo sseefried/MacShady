@@ -10,9 +10,10 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -package template-haskell -package language-c-quote \
           -package language-c-inline -package hint \
           -package OpenGLRaw \
+          -package OpenGL \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
-OBJS = Main.o App.o Hooks.o App_objc.o NSLog_objc.o \
+OBJS = Main.o App.o Hooks.o ShaderUtil.o App_objc.o NSLog_objc.o \
        AppDelegate.o AppDelegate_objc.o NSLog.o
 
 default: MacShady.app/Contents/MacOS/MacShady
