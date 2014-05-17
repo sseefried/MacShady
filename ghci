@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ghci -package-db ./.cabal-sandbox/x86_64-osx-ghc-7.6.3-packages.conf.d/ \
+     -no-user-package-db
