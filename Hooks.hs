@@ -12,6 +12,7 @@ import           Foreign.Marshal.Array
 import           Foreign.Storable (peek)
 import           Foreign.Marshal.Alloc (alloca, allocaBytes)
 import           Foreign.C.String (withCString)
+import           Shady.CompileEffect
 
 -- friends
 import NSLog
@@ -33,6 +34,13 @@ foreign export ccall msResize            :: CInt    -> CInt  -> IO ()
 foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
 foo bs f = BS.useAsCString bs $ \s -> withArray [s] $ \arr -> f arr
 
+pointsToArrayBuffer :: [(Float, Float)] -> [GLfloat]
+pointsToArrayBuffer = foldl f []
+  where
+    c = fromRational . toRational
+    f rest (x,y) = c x : c y : rest
+
+
 -- called immediately after OpenGL context established
 msInit :: IO ()
 msInit = do
@@ -42,20 +50,28 @@ msInit = do
 
   vbo <- alloca $ \ptr -> glGenBuffers 1 ptr >> peek ptr
   glBindBuffer gl_ARRAY_BUFFER vbo
-  withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (3 * 3 * 4) ptr gl_STATIC_DRAW
+  let meshData = pointsToArrayBuffer $ theMesh
+  withArray meshData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length meshData) * 4) ptr gl_STATIC_DRAW
+--  withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length vertexData) * 4) ptr gl_STATIC_DRAW
 
   (Right vs) <- loadShader VertexShader vertexShaderSource
   (Right fs) <- loadShader FragmentShader fragmentShaderSource
   (Right p)  <- linkShaders [vs,fs]
 
-  attribLocation p "position" $= AttribLocation 0
+  attribLocation       p "position"      $= AttribLocation 0
   bindFragDataLocation p "fragmentColor" $= 0
 
   currentProgram $= Just p
 
-  glVertexAttribPointer 0 3 gl_FLOAT 0 0 nullPtr
+  glVertexAttribPointer 0 2 gl_FLOAT 0 0 nullPtr
   glEnableVertexAttribArray 0
   return ()
+
+theMesh :: [(Float, Float)]
+theMesh = mesh 200 2
+
+lenMesh = length $ theMesh
+
 
 drawGoldenTriangle :: IO ()
 drawGoldenTriangle = do
@@ -72,7 +88,7 @@ msDraw = do
    nsLog $ "msDraw called"
    glClear (gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT)
 --   drawGoldenTriangle
-   glDrawArrays gl_TRIANGLES 0 3
+   glDrawArrays gl_TRIANGLE_STRIP 0 (fromIntegral $ lenMesh)
    glFlush
 
 msMouseDown :: CFloat -> CFloat -> IO ()

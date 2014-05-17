@@ -11,9 +11,14 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -package language-c-inline -package hint \
           -package OpenGLRaw \
           -package OpenGL \
+          -package vector-space \
+          -package type-unary \
+          -package wl-pprint \
+          -package shady-graphics \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
-OBJS = Main.o App.o Hooks.o ShaderUtil.o App_objc.o NSLog_objc.o \
+OBJS = Main.o App.o Hooks.o ShaderUtil.o Shady/CompileEffect.o \
+       App_objc.o NSLog_objc.o \
        AppDelegate.o AppDelegate_objc.o NSLog.o
 
 default: MacShady.app/Contents/MacOS/MacShady
@@ -22,6 +27,7 @@ default: MacShady.app/Contents/MacOS/MacShady
 	$(HC) -c $< $(HCFLAGS)
 
 AppDelegate.o:
+Hooks.o: ShaderUtil.o Shady/CompileEffect.o
 App.o: NSLog.o
 Main.o: App.o AppDelegate.o
 
