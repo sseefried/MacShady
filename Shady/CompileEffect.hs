@@ -10,7 +10,8 @@ module Shady.CompileEffect(
   -- functions that operate on opaque data type WebGLEffect
   compileEffect,                       -- constructs   WebGLEffect
   fragmentShader, vertexShader, -- deconstructs WebGLEffect
-  mesh
+  mesh, -- FIXME: move to another module
+  testEffect
 ) where
 
 -- System libraries
@@ -151,7 +152,8 @@ toShader uniforms shader = printf "%s\n%s\n%s" shaderHeaders uniformDecs shader
     uniformDecs :: String
     uniformDecs = concatMap (printf "%s;\n" . show) $ uniforms
     shaderHeaders = unlines [
-        "precision highp float;"
+        "#version 120"
+--      , "precision highp float;"
       , ""
       , "#define _attribute meshCoords"
       , "#define _uniform_SSSSS zoom"
@@ -339,7 +341,7 @@ mesh n side =
 
 
 testSurf :: SurfD
-testSurf = torus 1 2
+testSurf = torus 0.7 0.3
 
 testImage :: Image Color
 testImage = const red
@@ -350,4 +352,5 @@ testGeom = shadyGeometry { shadyImage = testImage, shadySurface = testSurf }
 testUI :: UI (ShadyGeometry Color)
 testUI = return testGeom
 
+testEffect :: ShadyEffect Color
 testEffect = shadyEffect testUI

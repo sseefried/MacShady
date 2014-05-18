@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 module Hooks where
 
 import           Data.Bits ((.|.))
@@ -13,6 +13,7 @@ import           Foreign.Storable (peek)
 import           Foreign.Marshal.Alloc (alloca, allocaBytes)
 import           Foreign.C.String (withCString)
 import           Shady.CompileEffect
+import           System.Exit
 
 -- friends
 import NSLog
@@ -40,6 +41,39 @@ pointsToArrayBuffer = foldl f []
     c = fromRational . toRational
     f rest (x,y) = c x : c y : rest
 
+compileAndLinkEffect :: IO ()
+compileAndLinkEffect = do
+  let effect = compileEffect "effect" testEffect
+  vs <- loadShader VertexShader (BS.pack $ vertexShader effect) >>= \case
+          Left errs -> nsLog errs >> exitFailure
+          Right vs  -> return vs
+  fs <- loadShader FragmentShader (BS.pack $ fragmentShader effect) >>= \case
+          Left errs -> nsLog errs >> exitFailure
+          Right fs  -> return fs
+
+  p <- linkShaders [vs,fs] >>= \case
+          Left errs -> nsLog errs >> exitFailure
+          Right p   -> return p
+
+  currentProgram $= Just p
+
+  attribLocation  p "meshCoords"      $= AttribLocation 0
+  zoom <- get (uniformLocation p "zoom")
+  pan  <- get (uniformLocation p "pan")
+  aRow <- get (uniformLocation p "aRow")
+  bRow <- get (uniformLocation p "bRow")
+  cRow <- get (uniformLocation p "cRow")
+--  mvp  <- get (uniformLocation p "gl_ModelViewProjectionMatrix")
+--  norm <- get (uniformLocation p "gl_NormalMatrix")
+
+--  uniformMat mvp $= [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+--  uniformMat norm $= [[1,0,0],[0,1,0],[0,0,1]]
+
+  uniform zoom $= TexCoord1 (1 :: GLfloat)
+  uniform pan  $= Vertex3 (0 :: GLfloat) 0 0
+  uniform aRow $= Vertex3 (1 :: GLfloat) 0 0
+  uniform bRow $= Vertex3 (0 :: GLfloat) 1 0
+  uniform cRow $= Vertex3 (0 :: GLfloat) 0 1
 
 -- called immediately after OpenGL context established
 msInit :: IO ()
@@ -54,14 +88,7 @@ msInit = do
   withArray meshData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length meshData) * 4) ptr gl_STATIC_DRAW
 --  withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length vertexData) * 4) ptr gl_STATIC_DRAW
 
-  (Right vs) <- loadShader VertexShader vertexShaderSource
-  (Right fs) <- loadShader FragmentShader fragmentShaderSource
-  (Right p)  <- linkShaders [vs,fs]
-
-  attribLocation       p "position"      $= AttribLocation 0
-  bindFragDataLocation p "fragmentColor" $= 0
-
-  currentProgram $= Just p
+  compileAndLinkEffect
 
   glVertexAttribPointer 0 2 gl_FLOAT 0 0 nullPtr
   glEnableVertexAttribArray 0
@@ -72,22 +99,10 @@ theMesh = mesh 200 2
 
 lenMesh = length $ theMesh
 
-
-drawGoldenTriangle :: IO ()
-drawGoldenTriangle = do
-  glColor3f 1 0.85 0.35
-  glBegin gl_TRIANGLES
-  glVertex3f 0.0 0.6 0.0
-  glVertex3f (-0.2) (-0.3) 0.0
-  glVertex3f 0.2 (-0.3) 0.0
-  glEnd
-  glFlush
-
 msDraw :: IO ()
 msDraw = do
    nsLog $ "msDraw called"
    glClear (gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT)
---   drawGoldenTriangle
    glDrawArrays gl_TRIANGLE_STRIP 0 (fromIntegral $ lenMesh)
    glFlush
 
@@ -131,8 +146,8 @@ msResize w h = do
 
 vertexShaderSource :: ByteString
 vertexShaderSource = BS.unlines
-  [ "#version 150"
-  , "in vec3 position;"
+  [ "#version 120"
+  , "attribute vec3 position;"
   , "void main()"
   , "{"
   , "gl_Position = vec4(position, 1);"
@@ -141,18 +156,31 @@ vertexShaderSource = BS.unlines
 
 fragmentShaderSource :: ByteString
 fragmentShaderSource = BS.unlines
-  [ "#version 150"
-  , "out vec4 fragmentColor;"
+  [ "#version 120"
   , "void main()"
   , "{"
-  , "  fragmentColor = vec4(1, 0.85, 0.35, 1);"
+  , "  gl_FragColor = vec4(1, 0.85, 0.35, 1);"
   , "}"
   ]
 
-vertexData :: [GLfloat]
-vertexData =
-  [  0.0 ,  0.9 , 0.0
-  , -0.9 , -0.9 , 0.0
-  ,  0.9 , -0.9 , 0.0
-  ]
+
+--vertexShaderSource :: ByteString
+--vertexShaderSource = BS.unlines
+--  [ "#version 150"
+--  , "in vec3 position;"
+--  , "void main()"
+--  , "{"
+--  , "gl_Position = vec4(position, 1);"
+--  , "}"
+--  ]
+
+--fragmentShaderSource :: ByteString
+--fragmentShaderSource = BS.unlines
+--  [ "#version 150"
+--  , "out vec4 fragmentColor;"
+--  , "void main()"
+--  , "{"
+--  , "  fragmentColor = vec4(1, 0.85, 0.35, 1);"
+--  , "}"
+--  ]
 

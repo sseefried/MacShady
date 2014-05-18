@@ -61,8 +61,8 @@ typename BOOL initialised = NO;
   typename NSOpenGLPixelFormatAttribute attrs[] =
     {
         // Must specify the 3.2 Core Profile to use OpenGL 3.2
-        NSOpenGLPFAOpenGLProfile,
-        NSOpenGLProfileVersion3_2Core,
+//        NSOpenGLPFAOpenGLProfile,
+//        NSOpenGLProfileVersion3_2Core,
         0
     };
 
