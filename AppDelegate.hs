@@ -52,17 +52,18 @@ objc_implementation [] [cunit|
 typename BOOL initialised = NO;
 
 /*
- * In order to get GLSL shaders to display you must enable OpenGL "3.2 Core Profile".
- * This means that we most override awakeFromNib since this is not done by default.
+ * In order to get GLSL shaders version 1.5 to display you must enable OpenGL "3.2 Core Profile".
+ * Do this by overriding awakeFromNib and call coreProfile32 below.
  */
-- (void)awakeFromNib
+
+- (void)coreProfile32
 {
   NSLog(@"awakeFromNIB called");
   typename NSOpenGLPixelFormatAttribute attrs[] =
     {
         // Must specify the 3.2 Core Profile to use OpenGL 3.2
-//        NSOpenGLPFAOpenGLProfile,
-//        NSOpenGLProfileVersion3_2Core,
+        NSOpenGLPFAOpenGLProfile,
+        NSOpenGLProfileVersion3_2Core,
         0
     };
 
@@ -77,7 +78,6 @@ typename BOOL initialised = NO;
 
   [self setPixelFormat:pf];
   [self setOpenGLContext:context];
-
 }
 
 /*
