@@ -9,7 +9,7 @@ import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import           Foreign.Ptr (nullPtr, Ptr(..))
 import           Foreign.Marshal.Array
-import           Foreign.Storable (peek)
+import           Foreign.Storable (peek, sizeOf)
 import           Foreign.Marshal.Alloc (alloca, allocaBytes)
 import           Foreign.C.String (withCString)
 import           Shady.CompileEffect
@@ -79,19 +79,20 @@ compileAndLinkEffect = do
 msInit :: IO ()
 msInit = do
   nsLog $ "msInit called"
-  vao <- alloca $ \ptr -> glGenVertexArrays 1 ptr >> peek ptr
-  glBindVertexArray vao
 
-  vbo <- alloca $ \ptr -> glGenBuffers 1 ptr >> peek ptr
-  glBindBuffer gl_ARRAY_BUFFER vbo
+  vbo:_ <- genObjectNames 1 -- just generate one BufferObject
+  bindBuffer ArrayBuffer $= Just vbo
+
   let meshData = pointsToArrayBuffer $ theMesh
-  withArray meshData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length meshData) * 4) ptr gl_STATIC_DRAW
---  withArray vertexData $ \ptr -> glBufferData gl_ARRAY_BUFFER (fromIntegral (length vertexData) * 4) ptr gl_STATIC_DRAW
+  withArray meshData $ \ptr -> do
+    let meshLen = fromIntegral (length meshData) * fromIntegral (sizeOf (undefined :: GLfloat))
+    bufferData ArrayBuffer $= (meshLen, ptr, StaticDraw)
 
   compileAndLinkEffect
 
-  glVertexAttribPointer 0 2 gl_FLOAT 0 0 nullPtr
-  glEnableVertexAttribArray 0
+  let attribLoc = AttribLocation 0
+  vertexAttribPointer attribLoc $= (ToFloat, VertexArrayDescriptor 2 Float 0 nullPtr)
+  vertexAttribArray attribLoc $= Enabled
   return ()
 
 theMesh :: [(Float, Float)]
