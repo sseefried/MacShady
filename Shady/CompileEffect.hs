@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes, GADTs, TypeFamilies, ScopedTypeVariables, FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -Wall #-}
 module Shady.CompileEffect(
   -- data types
   ShadyEffect(..), ShadyGeometry(..), WebGLEffect {-opaque-}, UIElem {-opaque-}, UI {-opaque-},
@@ -11,30 +12,25 @@ module Shady.CompileEffect(
   compileEffect,                       -- constructs   WebGLEffect
   fragmentShader, vertexShader, -- deconstructs WebGLEffect
   mesh, -- FIXME: move to another module
-  testEffect
+  testEffect -- FIXME: Move
 ) where
 
+
 -- System libraries
-import Data.Monoid
-import Control.Monad
-import Control.Applicative
 import Text.Printf
-import Control.Arrow        (second)
 
 -- friends
 import Shady.Image          (Image)
-import Shady.Color          (Color, HasColor, black, red, clear, toColor)
+import Shady.Color          (Color, HasColor, red, clear, toColor)
 import Shady.CompileImage   (eyePos)
 import Shady.CompileSurface (wrapSurfForEffect, EyePosE, Zoom)
-import Shady.ParamSurf      (SurfD, T, xyPlane, torus)
+import Shady.ParamSurf      (SurfD, xyPlane, torus)
 import Shady.Lighting       (View, view1, basicStd)
 import Shady.CompileE       (GLSL(..))
 import Shady.CompileEs      (shaderProgram)
-import Text.PrettyPrint.Leijen.DocExpr (HasExpr(..))
-import Shady.Language.Exp  (R1, R2, R3, R3E, pureE, BoolE, patE, patT, ExpT(..), E(..),
+import Shady.Language.Exp  (R2, R3, R3E, pureE, patE, patT, ExpT(..), E(..),
                             FromE(..), HasType, pat)
 import Shady.Misc           (EyePos)
-import Data.Derivative      (powVal, pureD)
 import TypeUnary.Vec        (vec3, Vec1)
 import Data.NameM
 
@@ -126,8 +122,8 @@ runUINameM uniquePrefix ui = case ui of
         p = pat $ name
     (a, varsAndElems) <- go . f $ (fromE . patE $ p)
     return $ (a, (vu, uiElemToUntyped e):varsAndElems)
-  UIBind ui f -> do
-    (a, varsAndElems)  <- go ui
+  UIBind nextUI f -> do
+    (a, varsAndElems)  <- go nextUI
     (a', varsAndElems') <- go (f a)
     return (a', varsAndElems ++ varsAndElems')
   where

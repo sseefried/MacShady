@@ -1,16 +1,14 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# OPTIONS_GHC -Wall #-}
 module Hooks where
 
-import           Data.Bits ((.|.))
 import           Foreign.C.Types
 import           Graphics.Rendering.OpenGL
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
-import           Foreign.Ptr (nullPtr, Ptr(..))
+import           Foreign.Ptr (nullPtr, Ptr)
 import           Foreign.Marshal.Array
-import           Foreign.Storable (peek, sizeOf)
-import           Foreign.Marshal.Alloc (alloca, allocaBytes)
-import           Foreign.C.String (withCString)
+import           Foreign.Storable (sizeOf)
 import           Shady.CompileEffect
 import           System.Exit
 
@@ -97,13 +95,14 @@ msInit = do
 theMesh :: [(Float, Float)]
 theMesh = mesh 200 2
 
-lenMesh = length $ theMesh
+lenMesh :: CInt
+lenMesh = fromIntegral . length $ theMesh
 
 msDraw :: IO ()
 msDraw = do
    nsLog $ "msDraw called"
    clear [ColorBuffer, DepthBuffer]
-   drawArrays TriangleStrip 0 (fromIntegral lenMesh)
+   drawArrays TriangleStrip 0 lenMesh
    flush
 
 msMouseDown :: CFloat -> CFloat -> IO ()
