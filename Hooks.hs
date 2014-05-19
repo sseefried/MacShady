@@ -3,7 +3,6 @@ module Hooks where
 
 import           Data.Bits ((.|.))
 import           Foreign.C.Types
-import           Graphics.Rendering.OpenGL.Raw
 import           Graphics.Rendering.OpenGL
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -103,9 +102,9 @@ lenMesh = length $ theMesh
 msDraw :: IO ()
 msDraw = do
    nsLog $ "msDraw called"
-   glClear (gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT)
-   glDrawArrays gl_TRIANGLE_STRIP 0 (fromIntegral $ lenMesh)
-   glFlush
+   clear [ColorBuffer, DepthBuffer]
+   drawArrays TriangleStrip 0 (fromIntegral lenMesh)
+   flush
 
 msMouseDown :: CFloat -> CFloat -> IO ()
 msMouseDown x y = do
@@ -140,7 +139,7 @@ msResize :: CInt -> CInt -> IO ()
 msResize w h = do
   nsLog $ "Resize to " ++ show (w,h)
   let s = min w h
-  glViewport ((w - s)`div` 2) ((h - s) `div` 2) s s
+  viewport $= (Position ((w - s)`div` 2) ((h - s) `div` 2) , Size s s )
   msDraw
 
 -------------------
