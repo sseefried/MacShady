@@ -2,6 +2,8 @@
 {-# OPTIONS_GHC -Wall #-}
 module Hooks where
 
+import           Foreign.StablePtr
+import           Data.IORef
 import           Foreign.C.Types
 import           Graphics.Rendering.OpenGL
 import           Data.ByteString.Char8 (ByteString)
@@ -15,18 +17,19 @@ import           System.Exit
 -- friends
 import NSLog
 import ShaderUtil
+import State
 
-foreign export ccall msInit              :: IO ()
-foreign export ccall msDraw              :: IO ()
-foreign export ccall msMouseDown         :: CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseUp           :: CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseDragged      :: CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDown    :: CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseUp      :: CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDragged :: CFloat  -> CFloat -> IO ()
-foreign export ccall msKeyDown           :: CUShort -> CULong -> IO ()
-foreign export ccall msKeyUp             :: CUShort -> CULong -> IO ()
-foreign export ccall msResize            :: CInt    -> CInt  -> IO ()
+foreign export ccall msInit              :: StablePtr (IORef State) -> IO ()
+foreign export ccall msDraw              :: StablePtr (IORef State) -> IO ()
+foreign export ccall msMouseDown         :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseUp           :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseDragged      :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDown    :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseUp      :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDragged :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
+foreign export ccall msKeyDown           :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+foreign export ccall msKeyUp             :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+foreign export ccall msResize            :: StablePtr (IORef State) -> CInt    -> CInt  -> IO ()
 
 
 foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
@@ -73,8 +76,8 @@ compileAndLinkEffect = do
   uniform cRow $= Vertex3 (0 :: GLfloat) 0 1
 
 -- called immediately after OpenGL context established
-msInit :: IO ()
-msInit = do
+msInit :: StablePtr (IORef State) -> IO ()
+msInit _ = do
   nsLog $ "msInit called"
 
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
@@ -98,48 +101,52 @@ theMesh = mesh 200 2
 lenMesh :: CInt
 lenMesh = fromIntegral . length $ theMesh
 
-msDraw :: IO ()
-msDraw = do
+msDraw :: StablePtr (IORef State) -> IO ()
+msDraw _ = do
    nsLog $ "msDraw called"
    clear [ColorBuffer, DepthBuffer]
    drawArrays TriangleStrip 0 lenMesh
    flush
 
-msMouseDown :: CFloat -> CFloat -> IO ()
-msMouseDown x y = do
+msMouseDown :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msMouseDown _ x y = do
   nsLog $ "Mouse clicked at " ++ show (x,y)
 
-msMouseUp :: CFloat -> CFloat -> IO ()
-msMouseUp x y = nsLog $ "Mouse up at " ++ show (x,y)
+msMouseUp :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msMouseUp _ x y = nsLog $ "Mouse up at " ++ show (x,y)
 
-msMouseDragged :: CFloat -> CFloat -> IO ()
-msMouseDragged x y = nsLog $ "Mouse dragged to " ++ show (x,y)
+msMouseDragged :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msMouseDragged _ x y = nsLog $ "Mouse dragged to " ++ show (x,y)
 
-msRightMouseDown     :: CFloat -> CFloat -> IO ()
-msRightMouseDown x y =  nsLog $ "Right Mouse clicked at " ++ show (x,y)
+msRightMouseDown     :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msRightMouseDown _ x y =  nsLog $ "Right Mouse clicked at " ++ show (x,y)
 
-msRightMouseUp       :: CFloat -> CFloat -> IO ()
-msRightMouseUp x y = nsLog $ "Right Mouse up at" ++ show (x,y)
+msRightMouseUp       :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msRightMouseUp _ x y = nsLog $ "Right Mouse up at" ++ show (x,y)
 
-msRightMouseDragged  :: CFloat -> CFloat -> IO ()
-msRightMouseDragged x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
+msRightMouseDragged  :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msRightMouseDragged _ x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
 
-msKeyDown :: CUShort -> CULong -> IO ()
-msKeyDown keyCode modifierFlags =
-    nsLog $ "Key down with code = " ++ show keyCode ++
+msKeyDown :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+msKeyDown sp keyCode modifierFlags = do
+  stateRef <- deRefStablePtr sp
+  modifyIORef stateRef $ \(State n) -> (State (n + 1))
+  state <- readIORef stateRef
+  nsLog $ "The state is now " ++ show state
+  nsLog $ "Key down with code = " ++ show keyCode ++
             " and modifierFlags = " ++ show modifierFlags
 
-msKeyUp :: CUShort -> CULong -> IO ()
-msKeyUp keyCode modifierFlags =
+msKeyUp :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+msKeyUp _ keyCode modifierFlags =
   nsLog $ "Key up with code = " ++ show keyCode ++
           " and modifierFlags = " ++ show modifierFlags
 
-msResize :: CInt -> CInt -> IO ()
-msResize w h = do
+msResize :: StablePtr (IORef State) -> CInt -> CInt -> IO ()
+msResize sp w h = do
   nsLog $ "Resize to " ++ show (w,h)
   let s = min w h
   viewport $= (Position ((w - s)`div` 2) ((h - s) `div` 2) , Size s s )
-  msDraw
+  msDraw sp
 
 -------------------
 

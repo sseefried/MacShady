@@ -9,28 +9,39 @@ module AppDelegate (objc_initialise) where
   -- language-c-inline
 import Language.C.Quote.ObjC
 import Language.C.Inline.ObjC
+import Foreign.StablePtr
+import Data.IORef
 
-  -- friends
+-- friendsi
+import State
+
+--
+--
+--
+makeStateRef :: IO (IORef State)
+makeStateRef = do
+  newIORef initialState
 
 
 objc_import ["<Cocoa/Cocoa.h>", "<OpenGL/gl.h>", "HsFFI.h"]
 
 -- Hooks into Haskell-land
 objc_interface [cunit|
-void msInit(void);
 
-void msDraw(void);
-void msMouseDown(float x, float y);
-void msMouseUp(float x, float y);
-void msMouseDragged(float x,float y);
+void msInit(typename HsStablePtr stateRef);
 
-void msRightMouseDown(float x, float y);
-void msRightMouseUp(float x, float y);
-void msRightMouseDragged(float x,float y);
+void msDraw(typename HsStablePtr stateRef);
+void msMouseDown(typename HsStablePtr stateRef,float x, float y);
+void msMouseUp(typename HsStablePtr stateRef, float x, float y);
+void msMouseDragged(typename HsStablePtr stateRef, float x,float y);
 
-void msKeyDown(unsigned short keyCode, unsigned long modifierFlags);
-void msKeyUp(unsigned short keyCode, unsigned long modifierFlags);
-void msResize(unsigned int width, unsigned int height);
+void msRightMouseDown(typename HsStablePtr stateRef, float x, float y);
+void msRightMouseUp(typename HsStablePtr stateRef, float x, float y);
+void msRightMouseDragged(typename HsStablePtr stateRef, float x,float y);
+
+void msKeyDown(typename HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
+void msKeyUp(typename HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
+void msResize(typename HsStablePtr stateRef, unsigned int width, unsigned int height);
 
 |]
 
@@ -41,15 +52,20 @@ void msResize(unsigned int width, unsigned int height);
 objc_interface [cunit|
 
 @interface MacShadyGLView : NSOpenGLView
+
+@property (assign) typename HsStablePtr stateRef;
+
 @end
 
 |]
 
-objc_implementation [] [cunit|
+objc_implementation ['makeStateRef] [cunit|
 
 @implementation MacShadyGLView
 
 typename BOOL initialised = NO;
+
+
 
 /*
  * In order to get GLSL shaders version 1.5 to display you must enable OpenGL "3.2 Core Profile".
@@ -96,9 +112,10 @@ typename BOOL initialised = NO;
   [super drawRect:dirtyRect];
   if (!initialised) {
     initialised = YES;
-    msInit();
+    self.stateRef = makeStateRef();
+    msInit(self.stateRef);
   }
-  msDraw();
+  msDraw(self.stateRef);
   [[self openGLContext] flushBuffer];
 }
 
@@ -110,7 +127,7 @@ typename BOOL initialised = NO;
   } else {
     typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-    msMouseDown(p.x, p.y);
+    msMouseDown(self.stateRef, p.x, p.y);
   }
 }
 
@@ -123,7 +140,7 @@ typename BOOL initialised = NO;
 
     typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                             fromView:nil];
-    msMouseUp(p.x, p.y);
+    msMouseUp(self.stateRef, p.x, p.y);
   }
 }
 
@@ -135,7 +152,7 @@ typename BOOL initialised = NO;
   } else {
     typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                             fromView:nil];
-    msMouseDragged(p.x, p.y);
+    msMouseDragged(self.stateRef, p.x, p.y);
   }
 }
 
@@ -143,38 +160,38 @@ typename BOOL initialised = NO;
 {
   typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseDown(p.x, p.y);
+  msRightMouseDown(self.stateRef, p.x, p.y);
 }
 
 - (void)rightMouseUp:(typename NSEvent *)theEvent
 {
   typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseUp(p.x, p.y);
+  msRightMouseUp(self.stateRef, p.x, p.y);
 }
 
 - (void)rightMouseDragged:(typename NSEvent *)theEvent
 {
   typename NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseDragged(p.x, p.y);
+  msRightMouseDragged(self.stateRef, p.x, p.y);
 }
 
 - (void)keyDown:(typename NSEvent *)theEvent
 {
-  msKeyDown([theEvent keyCode], [theEvent modifierFlags]);
+  msKeyDown(self.stateRef, [theEvent keyCode], [theEvent modifierFlags]);
 }
 
 - (void)keyUp:(typename NSEvent *)theEvent
 {
-  msKeyUp([theEvent keyCode], [theEvent modifierFlags]);
+  msKeyUp(self.stateRef, [theEvent keyCode], [theEvent modifierFlags]);
 }
 
 - (void)reshape
 {
   [[self openGLContext] update];
   typename NSRect bounds = [self bounds];
-  msResize(bounds.size.width, bounds.size.height);
+  msResize(self.stateRef, bounds.size.width, bounds.size.height);
 
 }
 /* This allows key down and key up events */

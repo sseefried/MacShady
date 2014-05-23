@@ -22,7 +22,7 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
 
 
 OBJS = $(SRC)/Main.o $(SRC)/App.o $(SRC)/Hooks.o $(SRC)/ShaderUtil.o\
-       $(SRC)/Shady/CompileEffect.o \
+       $(SRC)/Shady/CompileEffect.o $(SRC)/State.o \
        $(SRC)/App_objc.o $(SRC)/NSLog_objc.o \
        $(SRC)/AppDelegate.o $(SRC)/AppDelegate_objc.o $(SRC)/NSLog.o
 
@@ -31,7 +31,7 @@ default: MacShady.app/Contents/MacOS/MacShady
 %.o: %.hs
 	$(HC) -c $< $(HCFLAGS)
 
-$(SRC)/AppDelegate.o:
+$(SRC)/AppDelegate.o: $(SRC)/State.o
 $(SRC)/Hooks.o: $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o
 $(SRC)/App.o:   $(SRC)/NSLog.o
 $(SRC)/Main.o:  $(SRC)/App.o $(SRC)/AppDelegate.o
