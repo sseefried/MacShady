@@ -1,9 +1,11 @@
 HC      = ghc
 VER     = 7.6.3
+SRC     = src
 CFLAGS  = -fobjc-arc -I$(shell $(HC) --print-libdir)/include
 HCFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -no-user-package-db \
-          -package OpenGLRaw
+          -package OpenGLRaw \
+          -i$(SRC)
 
 LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -no-user-package-db \
@@ -17,23 +19,26 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -package shady-graphics \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
-OBJS = Main.o App.o Hooks.o ShaderUtil.o Shady/CompileEffect.o \
-       App_objc.o NSLog_objc.o \
-       AppDelegate.o AppDelegate_objc.o NSLog.o
+
+
+OBJS = $(SRC)/Main.o $(SRC)/App.o $(SRC)/Hooks.o $(SRC)/ShaderUtil.o\
+       $(SRC)/Shady/CompileEffect.o \
+       $(SRC)/App_objc.o $(SRC)/NSLog_objc.o \
+       $(SRC)/AppDelegate.o $(SRC)/AppDelegate_objc.o $(SRC)/NSLog.o
 
 default: MacShady.app/Contents/MacOS/MacShady
 
 %.o: %.hs
 	$(HC) -c $< $(HCFLAGS)
 
-AppDelegate.o:
-Hooks.o: ShaderUtil.o Shady/CompileEffect.o
-App.o: NSLog.o
-Main.o: App.o AppDelegate.o
+$(SRC)/AppDelegate.o:
+$(SRC)/Hooks.o: $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o
+$(SRC)/App.o:   $(SRC)/NSLog.o
+$(SRC)/Main.o:  $(SRC)/App.o $(SRC)/AppDelegate.o
 
-NSLog_objc.m: NSLog.o
-App_objc.m: App.o
-AppDelegate_objc.m: AppDelegate.o
+$(SRC)/NSLog_objc.m: $(SRC)/NSLog.o
+$(SRC)/App_objc.m:   $(SRC)/App.o
+$(SRC)/AppDelegate_objc.m: $(SRC)/AppDelegate.o
 
 MacShady: $(OBJS)
 	$(HC) -o $@ $^ $(LDFLAGS)
@@ -44,6 +49,7 @@ MacShady.app/Contents/MacOS/MacShady: MacShady
 .PHONY: clean
 
 clean:
-	rm -f *.o *.hi App_objc.[hm] AppDelegate_objc.[hm] *_stub.h NSLog_objc.[hm] \
+	rm -f $(SRC)/*.o $(SRC)/*.hi $(SRC)/App_objc.[hm]\
+	   $(SRC)/AppDelegate_objc.[hm] $(SRC)/*_stub.h $(SRC)/NSLog_objc.[hm] \
 	   MacShady \
 	   MacShady.app/Contents/MacOS/MacShady
