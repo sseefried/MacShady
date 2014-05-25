@@ -12,13 +12,13 @@ import Language.C.Inline.ObjC
 import Foreign.StablePtr
 import Data.IORef
 
--- friendsi
-import State
+-- friends
+import MSState
 
 --
 --
 --
-makeStateRef :: IO (IORef State)
+makeStateRef :: IO (IORef MSState)
 makeStateRef = do
   newIORef initialState
 

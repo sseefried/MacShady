@@ -13,23 +13,29 @@ import           Foreign.Marshal.Array
 import           Foreign.Storable (sizeOf)
 import           Shady.CompileEffect
 import           System.Exit
+import           Data.Matrix (Matrix)
+import qualified Data.Matrix as M
+import           Control.Concurrent
 
 -- friends
 import NSLog
 import ShaderUtil
-import State
+import MSState
+import MatrixUtil
 
-foreign export ccall msInit              :: StablePtr (IORef State) -> IO ()
-foreign export ccall msDraw              :: StablePtr (IORef State) -> IO ()
-foreign export ccall msMouseDown         :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseUp           :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseDragged      :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDown    :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseUp      :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDragged :: StablePtr (IORef State) -> CFloat  -> CFloat -> IO ()
-foreign export ccall msKeyDown           :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
-foreign export ccall msKeyUp             :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
-foreign export ccall msResize            :: StablePtr (IORef State) -> CInt    -> CInt  -> IO ()
+type StableIORef a = StablePtr (IORef a)
+
+foreign export ccall msInit              :: StableIORef MSState -> IO ()
+foreign export ccall msDraw              :: StableIORef MSState -> IO ()
+foreign export ccall msMouseDown         :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseUp           :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseDragged      :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDown    :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseUp      :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDragged :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
+foreign export ccall msKeyDown           :: StableIORef MSState -> CUShort -> CULong -> IO ()
+foreign export ccall msKeyUp             :: StableIORef MSState -> CUShort -> CULong -> IO ()
+foreign export ccall msResize            :: StableIORef MSState -> CInt    -> CInt  -> IO ()
 
 
 foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
@@ -41,8 +47,8 @@ pointsToArrayBuffer = foldl f []
     c = fromRational . toRational
     f rest (x,y) = c x : c y : rest
 
-compileAndLinkEffect :: IO ()
-compileAndLinkEffect = do
+compileAndLinkEffect :: IO Program
+compileAndLinkEffect  = do
   let effect = compileEffect "effect" testEffect
   vs <- loadShader VertexShader (BS.pack $ vertexShader effect) >>= \case
           Left errs -> nsLog errs >> exitFailure
@@ -63,21 +69,17 @@ compileAndLinkEffect = do
   aRow <- get (uniformLocation p "aRow")
   bRow <- get (uniformLocation p "bRow")
   cRow <- get (uniformLocation p "cRow")
---  mvp  <- get (uniformLocation p "gl_ModelViewProjectionMatrix")
---  norm <- get (uniformLocation p "gl_NormalMatrix")
-
---  uniformMat mvp $= [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
---  uniformMat norm $= [[1,0,0],[0,1,0],[0,0,1]]
 
   uniform zoom $= TexCoord1 (1 :: GLfloat)
   uniform pan  $= Vertex3 (0 :: GLfloat) 0 0
   uniform aRow $= Vertex3 (1 :: GLfloat) 0 0
   uniform bRow $= Vertex3 (0 :: GLfloat) 1 0
   uniform cRow $= Vertex3 (0 :: GLfloat) 0 1
+  return p
 
 -- called immediately after OpenGL context established
-msInit :: StablePtr (IORef State) -> IO ()
-msInit _ = do
+msInit :: StableIORef MSState -> IO ()
+msInit sr = do
   nsLog $ "msInit called"
 
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
@@ -88,11 +90,14 @@ msInit _ = do
     let meshLen = fromIntegral (length meshData) * fromIntegral (sizeOf (undefined :: GLfloat))
     bufferData ArrayBuffer $= (meshLen, ptr, StaticDraw)
 
-  compileAndLinkEffect
+  p <- compileAndLinkEffect
+
 
   let attribLoc = AttribLocation 0
   vertexAttribPointer attribLoc $= (ToFloat, VertexArrayDescriptor 2 Float 0 nullPtr)
   vertexAttribArray attribLoc $= Enabled
+
+  modifyStableIORef sr $ \s -> s { msGLSLProgram = Just p }
   return ()
 
 theMesh :: [(Float, Float)]
@@ -101,52 +106,73 @@ theMesh = mesh 200 2
 lenMesh :: CInt
 lenMesh = fromIntegral . length $ theMesh
 
-msDraw :: StablePtr (IORef State) -> IO ()
-msDraw _ = do
-   nsLog $ "msDraw called"
-   clear [ColorBuffer, DepthBuffer]
-   drawArrays TriangleStrip 0 lenMesh
-   flush
+msDraw :: StableIORef MSState -> IO ()
+msDraw sr = do
+  nsLog $ "msDraw called"
+  s      <- readStableIORef sr
+  let Just p = msGLSLProgram s
+  zoom   <- get (uniformLocation p "zoom")
+  aRow   <- get (uniformLocation p "aRow")
+  bRow   <- get (uniformLocation p "bRow")
+  cRow   <- get (uniformLocation p "cRow")
+  let rm = msRotationMatrix s
+  modifyStableIORef sr $ \s -> s { msRotationMatrix = rotateYZ (pi/100) (msRotationMatrix s) }
+  uniform aRow $= Vertex3 (elem 1 1 rm) (elem 1 2 rm) (elem 1 3 rm)
+  uniform bRow $= Vertex3 (elem 2 1 rm) (elem 2 2 rm) (elem 2 3 rm)
+  uniform cRow $= Vertex3 (elem 3 1 rm) (elem 3 2 rm) (elem 3 3 rm)
+  clear [ColorBuffer, DepthBuffer]
+  drawArrays TriangleStrip 0 lenMesh
+  flush
+  where
+    elem :: Int -> Int -> M.Matrix Float -> GLfloat
+    elem x y rm = fromRational . toRational $  rm M.! (x,y)
 
-msMouseDown :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
-msMouseDown _ x y = do
-  nsLog $ "Mouse clicked at " ++ show (x,y)
+modifyStableIORef :: StableIORef a -> (a -> a) -> IO ()
+modifyStableIORef sr f = deRefStablePtr sr >>= \ioRef -> modifyIORef ioRef f
 
-msMouseUp :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
-msMouseUp _ x y = nsLog $ "Mouse up at " ++ show (x,y)
+readStableIORef :: StableIORef a -> IO a
+readStableIORef sr = deRefStablePtr sr >>= readIORef
 
-msMouseDragged :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
-msMouseDragged _ x y = nsLog $ "Mouse dragged to " ++ show (x,y)
+coord :: CFloat -> CFloat -> (Float, Float)
+coord x y = (hf x, hf y)
+  where hf :: CFloat -> Float
+        hf = fromRational . toRational
+msMouseDown :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msMouseDown sr x y = modifyStableIORef sr
+    (\s -> s { msMouseDownPos = coord x y, msMouseButton = Just LeftMouseButton })
 
-msRightMouseDown     :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+
+msMouseUp :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msMouseUp sr _ _ = modifyStableIORef sr
+  (\s -> s { msMouseButton = Nothing })
+
+msMouseDragged :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msMouseDragged sr x y = return ()
+
+msRightMouseDown     :: StableIORef MSState -> CFloat -> CFloat -> IO ()
 msRightMouseDown _ x y =  nsLog $ "Right Mouse clicked at " ++ show (x,y)
 
-msRightMouseUp       :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msRightMouseUp       :: StableIORef MSState -> CFloat -> CFloat -> IO ()
 msRightMouseUp _ x y = nsLog $ "Right Mouse up at" ++ show (x,y)
 
-msRightMouseDragged  :: StablePtr (IORef State) -> CFloat -> CFloat -> IO ()
+msRightMouseDragged  :: StableIORef MSState -> CFloat -> CFloat -> IO ()
 msRightMouseDragged _ x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
 
-msKeyDown :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+msKeyDown :: StableIORef MSState -> CUShort -> CULong -> IO ()
 msKeyDown sp keyCode modifierFlags = do
-  stateRef <- deRefStablePtr sp
-  modifyIORef stateRef $ \(State n) -> (State (n + 1))
-  state <- readIORef stateRef
-  nsLog $ "The state is now " ++ show state
   nsLog $ "Key down with code = " ++ show keyCode ++
             " and modifierFlags = " ++ show modifierFlags
 
-msKeyUp :: StablePtr (IORef State) -> CUShort -> CULong -> IO ()
+msKeyUp :: StableIORef MSState -> CUShort -> CULong -> IO ()
 msKeyUp _ keyCode modifierFlags =
   nsLog $ "Key up with code = " ++ show keyCode ++
           " and modifierFlags = " ++ show modifierFlags
 
-msResize :: StablePtr (IORef State) -> CInt -> CInt -> IO ()
+msResize :: StableIORef MSState -> CInt -> CInt -> IO ()
 msResize sp w h = do
   nsLog $ "Resize to " ++ show (w,h)
   let s = min w h
   viewport $= (Position ((w - s)`div` 2) ((h - s) `div` 2) , Size s s )
-  msDraw sp
 
 -------------------
 
@@ -168,25 +194,3 @@ fragmentShaderSource = BS.unlines
   , "  gl_FragColor = vec4(1, 0.85, 0.35, 1);"
   , "}"
   ]
-
-
---vertexShaderSource :: ByteString
---vertexShaderSource = BS.unlines
---  [ "#version 150"
---  , "in vec3 position;"
---  , "void main()"
---  , "{"
---  , "gl_Position = vec4(position, 1);"
---  , "}"
---  ]
-
---fragmentShaderSource :: ByteString
---fragmentShaderSource = BS.unlines
---  [ "#version 150"
---  , "out vec4 fragmentColor;"
---  , "void main()"
---  , "{"
---  , "  fragmentColor = vec4(1, 0.85, 0.35, 1);"
---  , "}"
---  ]
-
