@@ -61,20 +61,50 @@ objc_interface [cunit|
 
 objc_implementation ['makeStateRef] [cunit|
 
+static const typename NSTimeInterval  kScheduledTimerInSeconds      = 1.0f/60.0f;
 @implementation MacShadyGLView
 
 typename BOOL initialised = NO;
-
+typename NSTimer            *timer;            // timer to update the view content
 
 
 /*
+ * In order for OpenGL's "depth test" to work you have to have a non-zero depth size
+ * in pixel format. This can be set in Interface Builder but I have opted to enable it
+ * programatically.
+ */
+- (void)awakeFromNib
+{
+  NSLog(@"awakeFromNIB called");
+  typename NSOpenGLPixelFormatAttribute attrs[] =
+    {
+        NSOpenGLPFADoubleBuffer,
+        NSOpenGLPFADepthSize, 8,
+        0
+    };
+
+  typename NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
+
+  if (!pf)
+  {
+      NSLog(@"No OpenGL pixel format");
+  }
+
+  typename NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
+
+  [self setPixelFormat:pf];
+  [self setOpenGLContext:context];
+}
+
+/*
  * In order to get GLSL shaders version 1.5 to display you must enable OpenGL "3.2 Core Profile".
- * Do this by overriding awakeFromNib and call coreProfile32 below.
+ *
+ * We are NOT currently using verison 1.5 but 1.2 instead. Setting the 3.2 Core Profile will
+ * mean this doesn't work.
  */
 
 - (void)coreProfile32
 {
-  NSLog(@"awakeFromNIB called");
   typename NSOpenGLPixelFormatAttribute attrs[] =
     {
         // Must specify the 3.2 Core Profile to use OpenGL 3.2
@@ -107,13 +137,39 @@ typename BOOL initialised = NO;
  *
  */
 
+- (void)redraw
+{
+  [self drawRect:[self bounds]];
+}
+
+- (void)initUpdateTimer
+{
+  timer = [NSTimer timerWithTimeInterval:kScheduledTimerInSeconds
+                target:self
+                selector:@selector(redraw)
+                userInfo:nil
+                 repeats:YES];
+
+  [[NSRunLoop currentRunLoop] addTimer:timer
+               forMode:NSDefaultRunLoopMode];
+
+  [[NSRunLoop currentRunLoop] addTimer:timer
+               forMode:NSEventTrackingRunLoopMode];
+
+}
+
+- (void)initialise{
+    self.stateRef = makeStateRef();
+    [self initUpdateTimer];
+    msInit(self.stateRef);
+}
+
 - (void)drawRect:(typename NSRect)dirtyRect
 {
   [super drawRect:dirtyRect];
   if (!initialised) {
     initialised = YES;
-    self.stateRef = makeStateRef();
-    msInit(self.stateRef);
+    [self initialise];
   }
   msDraw(self.stateRef);
   [[self openGLContext] flushBuffer];

@@ -21,9 +21,9 @@ xyRotMatrix a = M.fromList 3 3 [ cos a, -(sin a), 0
 
 
 xzRotMatrix :: Floating a => a -> Matrix a
-xzRotMatrix a = M.fromList 3 3 [ cos a , 0  , -(sin a)
+xzRotMatrix a = M.fromList 3 3 [ cos a , 0  , sin a
                                , 0     , 1  , 0
-                               , sin a , 0  , cos a   ]
+                               , -(sin a) , 0  , cos a   ]
 
 yzRotMatrix :: Floating a => a -> Matrix a
 yzRotMatrix a = M.fromList 3 3 [   1   , 0      , 0

@@ -93,9 +93,6 @@ uiElemToUntyped e = case e of
   (UISliderI s l d u)              -> UUISliderI s l d u
   UITime                           -> UUITime
 
-
-
-
 elemName :: forall a.String -> UIElem a -> NameM String
 elemName uniquePrefix e = do
   nm <- genName

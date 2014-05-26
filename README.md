@@ -19,3 +19,19 @@ The nib file was generated in Interface Builder in a skeleton project in Xcode
 ## OpenGL Core Profile 3.2
 
 In order to have the shaders display I had
+
+
+## Problems overcome
+
+Q1. I had a torus displaying but it looked funny. First there was a circle
+  kind of showing at one end and there was a strange stripey nature to it.
+  I eventually worked out that it must be that the z test wasn't working
+  properly.
+
+A1. It turned out that I had not enabled a depth buffer in Cocoa's
+    NSOpenGLView. I could have done this in the interface builder but
+    instead I opted to override it in the awakeFromNib method.
+
+    I also had to set the right depthFunc using the Haskell OpenGL library.
+
+      depthFunc $= Just Less
