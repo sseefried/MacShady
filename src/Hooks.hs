@@ -131,9 +131,10 @@ msDraw sr = do
       where
         applyDrag = do
           modifyMSStateRef sr $ \s ->
-            (let (vx,vy) = msRotateVelocity s
-                 d       = 1 - vELOCITY_DRAG
-            in  s { msRotateVelocity = (vx*d, vy*d) })
+            let (vx,vy) = msRotateVelocity s
+                d       = 1 - vELOCITY_DRAG
+            in  s { msRotateVelocity = (vx*d, vy*d) }
+        -- TODO: Make rotation apply relative to camera, not object's original position.
         applyRotation = do
           modifyMSStateRef sr $ \s ->
             let msrm    = msRotationMatrix s
