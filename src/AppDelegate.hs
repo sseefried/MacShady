@@ -18,9 +18,9 @@ import MSState
 --
 --
 --
-makeStateRef :: IO (IORef MSState)
-makeStateRef = do
-  newIORef initialState
+makeMSStateRef :: IO (IORef (Maybe MSState))
+makeMSStateRef = newIORef Nothing
+
 
 
 objc_import ["<Cocoa/Cocoa.h>", "<OpenGL/gl.h>", "HsFFI.h"]
@@ -59,7 +59,7 @@ objc_interface [cunit|
 
 |]
 
-objc_implementation ['makeStateRef] [cunit|
+objc_implementation ['makeMSStateRef] [cunit|
 
 static const typename NSTimeInterval  kScheduledTimerInSeconds      = 1.0f/60.0f;
 @implementation MacShadyGLView
@@ -159,7 +159,7 @@ typename NSTimer            *timer;            // timer to update the view conte
 }
 
 - (void)initialise{
-    self.stateRef = makeStateRef();
+    self.stateRef = makeMSStateRef();
     [self initUpdateTimer];
     msInit(self.stateRef);
 }

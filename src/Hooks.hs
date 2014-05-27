@@ -28,19 +28,21 @@ import MatrixUtil
 -- the total mesh size is approximately the square of this number.
 mESH_SIZE = 200
 
-type StableIORef a = StablePtr (IORef a)
 
-foreign export ccall msInit              :: StableIORef MSState -> IO ()
-foreign export ccall msDraw              :: StableIORef MSState -> IO ()
-foreign export ccall msMouseDown         :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseUp           :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msMouseDragged      :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDown    :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseUp      :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msRightMouseDragged :: StableIORef MSState -> CFloat  -> CFloat -> IO ()
-foreign export ccall msKeyDown           :: StableIORef MSState -> CUShort -> CULong -> IO ()
-foreign export ccall msKeyUp             :: StableIORef MSState -> CUShort -> CULong -> IO ()
-foreign export ccall msResize            :: StableIORef MSState -> CInt    -> CInt  -> IO ()
+vELOCITY_DRAG = 0.02 -- value between 0 and 1. 0 is no drag. 1 is complete drag.
+vELOCITY_ACCEL = 0.01
+
+foreign export ccall msInit              :: MSStateRef -> IO ()
+foreign export ccall msDraw              :: MSStateRef -> IO ()
+foreign export ccall msMouseDown         :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseUp           :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msMouseDragged      :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDown    :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseUp      :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msRightMouseDragged :: MSStateRef -> CFloat  -> CFloat -> IO ()
+foreign export ccall msKeyDown           :: MSStateRef -> CUShort -> CULong -> IO ()
+foreign export ccall msKeyUp             :: MSStateRef -> CUShort -> CULong -> IO ()
+foreign export ccall msResize            :: MSStateRef -> CInt    -> CInt  -> IO ()
 
 
 foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
@@ -73,7 +75,7 @@ compileAndLinkEffect  = do
   return p
 
 -- called immediately after OpenGL context established
-msInit :: StableIORef MSState -> IO ()
+msInit :: MSStateRef -> IO ()
 msInit sr = do
   nsLog $ "msInit called"
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
@@ -92,6 +94,7 @@ msInit sr = do
   bRow <- get (uniformLocation p "bRow")
   cRow <- get (uniformLocation p "cRow")
 
+  -- TODO: Write some helper functions to do this
   uniform zoom $= TexCoord1 (1 :: GLfloat)
   uniform pan  $= Vertex3 (0      :: GLfloat)      0        0
   uniform aRow $= Vertex3 (1      :: GLfloat)      0        0
@@ -102,13 +105,7 @@ msInit sr = do
   vertexAttribPointer attribLoc $= (ToFloat, VertexArrayDescriptor 2 Float 0 nullPtr)
   vertexAttribArray attribLoc $= Enabled
 
-  modifyStableIORef sr $ \s -> s { msGLSLProgram    = Just p
-                                 , msZoomUniformLoc = Just zoom
-                                 , msPanUniformLoc  = Just pan
-                                 , msARowUniformLoc = Just aRow
-                                 , msBRowUniformLoc = Just bRow
-                                 , msCRowUniformLoc = Just cRow
-                                 }
+  writeMSStateRef sr $ initialMSState p zoom pan aRow bRow cRow
 
   -- The depth test does not work properly unless you set the depthFunc.
   -- If you don't do this you will get polygons that are occluded by others
@@ -123,36 +120,35 @@ theMesh = mesh mESH_SIZE 2
 lenMesh :: CInt
 lenMesh = fromIntegral . length $ theMesh
 
-msDraw :: StableIORef MSState -> IO ()
+
+msDraw :: MSStateRef -> IO ()
 msDraw sr = do
+      applyDrag
+      applyRotation
+      clear [ColorBuffer, DepthBuffer]
+      drawArrays TriangleStrip 0 lenMesh
+      flush
+      where
+        applyDrag = do
+          modifyMSStateRef sr $ \s ->
+            (let (vx,vy) = msRotateVelocity s
+                 d       = 1 - vELOCITY_DRAG
+            in  s { msRotateVelocity = (vx*d, vy*d) })
+        applyRotation = do
+          modifyMSStateRef sr $ \s ->
+            let msrm    = msRotationMatrix s
+                m       = msrmVal msrm
+                (vx,vy) = msRotateVelocity s
+            in s { msRotationMatrix = msrm { msrmVal = rotateXZ vx . rotateYZ vy $ m }}
+          setRotationMatrix sr
 
 
-
-  -- FIXME: Remove. Just a proof of concept
-  s      <- readStableIORef sr
-  case msGLSLProgram s of
-    Just p -> do
-      let rm = msRotationMatrix s
-      modifyStableIORef sr $ \s -> s { msRotationMatrix = rotateYZ 0.01 rm}
-      setRotationMatrix sr
-    Nothing -> return ()
-
-
-  clear [ColorBuffer, DepthBuffer]
-  drawArrays TriangleStrip 0 lenMesh
-  flush
-
-setRotationMatrix :: StableIORef MSState -> IO ()
-setRotationMatrix sr = do
-  s <- readStableIORef sr
-  let mbIO = do -- Maybe monad
-              aRow <- msARowUniformLoc s
-              bRow <- msBRowUniformLoc s
-              cRow <- msCRowUniformLoc s
-              return $ setUniforms (msRotationMatrix s) aRow bRow cRow
-  -- nothing happens if aRow, bRow and cRow are not all "Just <something>"
-  maybe (return ()) id mbIO
+setRotationMatrix :: MSStateRef -> IO ()
+setRotationMatrix sr = withMSStateRef sr go
   where
+    go s = do
+      let MSRotationMatrix m (aRow, bRow, cRow) = msRotationMatrix s
+      setUniforms m aRow bRow cRow
     elem :: Int -> Int -> M.Matrix Float -> GLfloat
     elem x y rm = fromRational . toRational $  rm M.! (x,y)
     setUniforms :: M.Matrix Float -> UniformLocation -> UniformLocation -> UniformLocation -> IO ()
@@ -161,53 +157,61 @@ setRotationMatrix sr = do
       uniform bRow $= Vertex3 (elem 2 1 rm) (elem 2 2 rm) (elem 2 3 rm)
       uniform cRow $= Vertex3 (elem 3 1 rm) (elem 3 2 rm) (elem 3 3 rm)
 
-modifyStableIORef :: StableIORef a -> (a -> a) -> IO ()
-modifyStableIORef sr f = deRefStablePtr sr >>= \ioRef -> modifyIORef ioRef f
-
-readStableIORef :: StableIORef a -> IO a
-readStableIORef sr = deRefStablePtr sr >>= readIORef
-
 coord :: CFloat -> CFloat -> (Float, Float)
 coord x y = (hf x, hf y)
   where hf :: CFloat -> Float
         hf = fromRational . toRational
-msMouseDown :: StableIORef MSState -> CFloat -> CFloat -> IO ()
-msMouseDown sr x y = modifyStableIORef sr
+msMouseDown :: MSStateRef -> CFloat -> CFloat -> IO ()
+msMouseDown sr x y = modifyMSStateRef sr
     (\s -> s { msMouseDownPos = coord x y, msMouseButton = Just LeftMouseButton })
 
 
-msMouseUp :: StableIORef MSState -> CFloat -> CFloat -> IO ()
-msMouseUp sr _ _ = modifyStableIORef sr
+msMouseUp :: MSStateRef -> CFloat -> CFloat -> IO ()
+msMouseUp sr _ _ = modifyMSStateRef sr
   (\s -> s { msMouseButton = Nothing })
 
-msMouseDragged :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msMouseDragged :: MSStateRef -> CFloat -> CFloat -> IO ()
 msMouseDragged sr x y = return ()
 
-msRightMouseDown     :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msRightMouseDown     :: MSStateRef -> CFloat -> CFloat -> IO ()
 msRightMouseDown _ x y =  nsLog $ "Right Mouse clicked at " ++ show (x,y)
 
-msRightMouseUp       :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msRightMouseUp       :: MSStateRef -> CFloat -> CFloat -> IO ()
 msRightMouseUp _ x y = nsLog $ "Right Mouse up at" ++ show (x,y)
 
-msRightMouseDragged  :: StableIORef MSState -> CFloat -> CFloat -> IO ()
+msRightMouseDragged  :: MSStateRef -> CFloat -> CFloat -> IO ()
 msRightMouseDragged _ x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
 
-msKeyDown :: StableIORef MSState -> CUShort -> CULong -> IO ()
-msKeyDown sp keyCode modifierFlags = do
+msKeyDown :: MSStateRef -> CUShort -> CULong -> IO ()
+msKeyDown sr keyCode modifierFlags = do
   nsLog $ "Key down with code = " ++ show keyCode ++
             " and modifierFlags = " ++ show modifierFlags
+  let a = vELOCITY_ACCEL
+  case keyCode of
+    0  {-A -} -> addVx a
+    1 {- S -} -> addVy (-a)
+    2  {-D -} -> addVx (-a)
+    13 {-W -} -> addVy a
+    _ -> return ()
+  where
+    addV xd yd = modifyMSStateRef sr $ \s ->
+                   let (vx, vy) = msRotateVelocity s
+                   in s{ msRotateVelocity = (vx + xd, vy + yd)}
+    addVx xd = addV xd 0
+    addVy yd = addV 0  yd
+
   --s <- readStableIORef sr
   --let rotVel = msRotationVelocity s
   --case keyCode of
   --  2 -> modifyStableIORef sr $ \s -> s { msRotationVelocity = rotVel  }
 
-msKeyUp :: StableIORef MSState -> CUShort -> CULong -> IO ()
+msKeyUp :: MSStateRef -> CUShort -> CULong -> IO ()
 msKeyUp sr keyCode modifierFlags =
   nsLog $ "Key up with code = " ++ show keyCode ++
           " and modifierFlags = " ++ show modifierFlags
 
 
-msResize :: StableIORef MSState -> CInt -> CInt -> IO ()
+msResize :: MSStateRef -> CInt -> CInt -> IO ()
 msResize sp w h = do
   nsLog $ "Resize to " ++ show (w,h)
   let s = min w h

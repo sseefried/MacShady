@@ -40,7 +40,8 @@ default: MacShady.app/Contents/MacOS/MacShady
 	$(HC) -c $< $(HCFLAGS)
 
 $(SRC)/AppDelegate.o: $(SRC)/MSState.o
-$(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o $(SRC)/MatrixUtil.o
+$(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o $(SRC)/MatrixUtil.o \
+                      $(SRC)/MSState.o
 $(SRC)/App.o:         $(SRC)/NSLog.o
 $(SRC)/Main.o:        $(SRC)/App.o $(SRC)/AppDelegate.o
 
