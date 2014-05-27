@@ -14,28 +14,20 @@ import qualified Data.Matrix as M
 -- of the wrong dimensions.
 --
 
-xyRotMatrix :: Floating a => a -> Matrix a
-xyRotMatrix a = M.fromList 3 3 [ cos a, -(sin a), 0
-                               , sin a, cos a   , 0
-                               , 0    , 0       , 1 ]
+rotateAboutAxisMatrix :: Float -> (Float, Float, Float) -> Matrix Float
+rotateAboutAxisMatrix ang (vx,vy,vz) =
+  M.fromList 3 3 [ ux*ux*t + c,    uy*ux*t + uz*s, uz*ux*t - uy*s,
+                   ux*uy*t - uz*s, uy*uy*t + c,    uz*uy*t + ux*s,
+                   ux*uz*t + uy*s, uy*uz*t - ux*s, uz*uz*t + c    ]
+  where
+    d = sqrt (vx*vx + vy*vy + vz*vz)
+    (ux,uy,uz) = (vx/d, vy/d, vz/d)
+    s = sin ang
+    c = cos ang
+    t = 1 - c
 
+rotateAboutAxis :: Float -> (Float, Float, Float) -> Matrix Float -> Matrix Float
+rotateAboutAxis ang axis m = m * rotateAboutAxisMatrix ang axis
 
-xzRotMatrix :: Floating a => a -> Matrix a
-xzRotMatrix a = M.fromList 3 3 [ cos a , 0  , sin a
-                               , 0     , 1  , 0
-                               , -(sin a) , 0  , cos a   ]
-
-yzRotMatrix :: Floating a => a -> Matrix a
-yzRotMatrix a = M.fromList 3 3 [   1   , 0      , 0
-                               ,   0   , cos a  , -(sin a)
-                               ,   0   , sin a  , cos a   ]
-
-
-rotateWith :: Floating a => (a -> Matrix a) -> a -> Matrix a -> Matrix a
-rotateWith rotMatrix a m = m * rotMatrix a
-
-
-rotateXY, rotateXZ, rotateYZ :: Floating a => a -> Matrix a -> Matrix a
-rotateXY = rotateWith xyRotMatrix
-rotateXZ = rotateWith xzRotMatrix
-rotateYZ = rotateWith yzRotMatrix
+xAxisOf m = (m M.! (1,1), m M.! (1,2), m M.! (1,3))
+yAxisOf m = (m M.! (2,1), m M.! (2,2), m M.! (2,3))

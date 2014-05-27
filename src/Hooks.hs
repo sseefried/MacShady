@@ -131,18 +131,19 @@ msDraw sr = do
       where
         applyDrag = do
           modifyMSStateRef sr $ \s ->
-            let (vx,vy) = msRotateVelocity s
-                d       = 1 - vELOCITY_DRAG
+            let (vx,vy)    = msRotateVelocity s
+                d          = 1 - vELOCITY_DRAG
             in  s { msRotateVelocity = (vx*d, vy*d) }
         -- TODO: Make rotation apply relative to camera, not object's original position.
         applyRotation = do
           modifyMSStateRef sr $ \s ->
-            let msrm    = msRotationMatrix s
-                m       = msrmVal msrm
-                (vx,vy) = msRotateVelocity s
-            in s { msRotationMatrix = msrm { msrmVal = rotateXZ vx . rotateYZ vy $ m }}
+            let msrm            = msRotationMatrix s
+                m               = msrmVal msrm
+                xAxis           = xAxisOf m
+                yAxis           = yAxisOf m
+                (vx, vy)        = msRotateVelocity s
+            in s { msRotationMatrix = msrm { msrmVal =  rotateAboutAxis vy xAxis . rotateAboutAxis vx yAxis $ m }}
           setRotationMatrix sr
-
 
 setRotationMatrix :: MSStateRef -> IO ()
 setRotationMatrix sr = withMSStateRef sr go
@@ -189,17 +190,17 @@ msKeyDown sr keyCode modifierFlags = do
             " and modifierFlags = " ++ show modifierFlags
   let a = vELOCITY_ACCEL
   case keyCode of
-    0  {-A -} -> addVx a
-    1 {- S -} -> addVy (-a)
-    2  {-D -} -> addVx (-a)
-    13 {-W -} -> addVy a
+    0  {- A -} -> addVx (-a)
+    1  {- S -} -> addVy a
+    2  {- D -} -> addVx a
+    13 {- W -} -> addVy (-a)
     _ -> return ()
   where
-    addV xd yd = modifyMSStateRef sr $ \s ->
-                   let (vx, vy) = msRotateVelocity s
-                   in s{ msRotateVelocity = (vx + xd, vy + yd)}
-    addVx xd = addV xd 0
-    addVy yd = addV 0  yd
+    addV dx dy = modifyMSStateRef sr $ \s ->
+                        let (vx,vy) = msRotateVelocity s
+                        in s { msRotateVelocity = (vx + dx, vy + dy)}
+    addVx dx = addV dx 0
+    addVy dy = addV 0 dy
 
   --s <- readStableIORef sr
   --let rotVel = msRotationVelocity s

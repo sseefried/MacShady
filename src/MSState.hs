@@ -23,7 +23,6 @@ data MSPan  = MSPan  { mspVal :: (Float, Float), mspUniformLoc :: O.UniformLocat
 
 data MSState = MSState { msMouseDownPos    :: (Float, Float)
                        , msMouseButton     :: Maybe MouseButton
-                         -- rotational velocity in XZ and YZ planes
                        , msRotateVelocity  :: (Float, Float)
                        , msGLSLProgram     :: O.Program
                        , msZoom            :: MSZoom
