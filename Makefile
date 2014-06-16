@@ -1,7 +1,8 @@
 HC      = ghc
 VER     = 7.6.3
 SRC     = src
-CFLAGS  = -fobjc-arc -I$(shell $(HC) --print-libdir)/include
+CC      = /usr/bin/cc
+CFLAGS  = -fobjc-arc -I$(shell $(HC) --print-libdir)/include -I$(SRC)
 HCFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -no-user-package-db \
           -i$(SRC)
@@ -32,6 +33,9 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/NSLog_objc.o \
        $(SRC)/AppDelegate.o \
        $(SRC)/AppDelegate_objc.o \
+       $(SRC)/ShadyFloatSlider.o \
+       $(SRC)/ShadyUIGen.o \
+       $(SRC)/MacShadyGLView.o \
        $(SRC)/NSLog.o
 
 default: MacShady.app/Contents/MacOS/MacShady

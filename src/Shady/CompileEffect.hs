@@ -306,29 +306,20 @@ mesh n side =
 --uiElemToJson uniformName e = addNameEntry $ case e of
 --    UISliderF title lower defaultVal upper ->
 --      [ ("sort",      JVString "float_slider")
---      , ("ui-type",   JVString "float")
 --      , ("title",     JVString title)
 --      , ("min",       JVNumber lower)
 --      , ("value",     JVNumber defaultVal)
---      , ("max",       JVNumber upper) ]
---    UISliderWithStepF title lower defaultVal upper step ->
---      [ ("sort",      JVString "float_slider_with_step")
---      , ("ui-type",   JVString "float")
---      , ("title",     JVString title)
---      , ("min",       JVNumber lower)
---      , ("value",     JVNumber defaultVal)
---      , ("step",      JVNumber step)
+--      , FIXME: optional step goes here
 --      , ("max",       JVNumber upper) ]
 --    UISliderI title lower defaultVal upper ->
 --      [ ("sort",      JVString "int_slider")
---      , ("ui-type",   JVString "int")
 --      , ("title",     JVString title)
 --      , ("min",       JVNumber (fromIntegral lower))
 --      , ("value",     JVNumber (fromIntegral defaultVal))
+--      , FIXME: optional step goes here
 --      , ("max",       JVNumber (fromIntegral upper)) ]
 --    UITime ->
---      [ ("sort",      JVString "time")
---      , ("ui-type",   JVString "time") ]
+--      [ ("sort",      JVString "time") ]
 --  where
 --    addNameEntry = JVObject .JsonObject . (("name", JVString uniformName):)
 
