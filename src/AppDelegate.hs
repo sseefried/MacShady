@@ -50,6 +50,7 @@ objc_implementation ['makeMSStateRef] [cunit|
 }
 
 @end
+
 |]
 
 

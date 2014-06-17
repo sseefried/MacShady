@@ -5,6 +5,7 @@ module Hooks where
 import           Foreign.StablePtr
 import           Data.IORef
 import           Foreign.C.Types
+import           Foreign.C.String
 import           Graphics.Rendering.OpenGL
 import           Graphics.Rendering.OpenGL.Raw
 import           Data.ByteString.Char8 (ByteString)
@@ -42,7 +43,8 @@ foreign export ccall msRightMouseUp      :: MSStateRef -> CFloat  -> CFloat -> I
 foreign export ccall msRightMouseDragged :: MSStateRef -> CFloat  -> CFloat -> IO ()
 foreign export ccall msKeyDown           :: MSStateRef -> CUShort -> CULong -> IO ()
 foreign export ccall msKeyUp             :: MSStateRef -> CUShort -> CULong -> IO ()
-foreign export ccall msResize            :: MSStateRef -> CInt    -> CInt  -> IO ()
+foreign export ccall msResize            :: MSStateRef -> CInt    -> CInt   -> IO ()
+foreign export ccall msSetFloatUniform   :: MSStateRef -> CString -> CFloat -> IO ()
 
 
 foo :: ByteString -> (Ptr (Ptr GLchar) -> IO a) -> IO a
@@ -214,7 +216,14 @@ msKeyUp sr keyCode modifierFlags =
 
 
 msResize :: MSStateRef -> CInt -> CInt -> IO ()
-msResize sp w h = do
+msResize _ w h = do
   nsLog $ "Resize to " ++ show (w,h)
   let s = min w h
   viewport $= (Position ((w - s)`div` 2) ((h - s) `div` 2) , Size s s )
+
+msSetFloatUniform :: MSStateRef -> CString -> CFloat -> IO ()
+msSetFloatUniform sr uniformNameCString value = withMSStateRef sr $ \s -> do
+  let p = msGLSLProgram s
+  uniformName <- peekCString uniformNameCString
+  name <- get (uniformLocation p uniformName)
+  uniform name $= TexCoord1 ((fromRational . toRational) value :: GLfloat)

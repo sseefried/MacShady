@@ -24,15 +24,19 @@ import Shady.Image          (Image)
 import Shady.Color          (Color, HasColor, red, clear, toColor)
 import Shady.CompileImage   (eyePos)
 import Shady.CompileSurface (wrapSurfForEffect, EyePosE, Zoom)
-import Shady.ParamSurf      (SurfD, xyPlane, torus)
+import Shady.ParamSurf      (SurfD, xyPlane, torus, T)
 import Shady.Lighting       (View, view1, basicStd)
 import Shady.CompileE       (GLSL(..))
 import Shady.CompileEs      (shaderProgram)
-import Shady.Language.Exp  (R2, R3, R3E, pureE, patE, patT, ExpT(..), E(..),
-                            FromE(..), HasType, pat)
+import Shady.Language.Exp   (R2, R3, R3E, pureE, patE, patT, ExpT(..), E(..),
+                             FromE(..), HasType, pat)
 import Shady.Misc           (EyePos)
 import TypeUnary.Vec        (vec3, Vec1)
 import Data.NameM
+
+-- FIXME: Remove
+import Data.Maclaurin
+
 
 data ShadyEffect c = ShadyEffect {
   shadyGeometryUI  :: UI (ShadyGeometry c),
@@ -324,17 +328,20 @@ mesh n side =
 --    addNameEntry = JVObject .JsonObject . (("name", JVString uniformName):)
 
 
-testSurf :: SurfD
-testSurf = torus 0.7 0.3
+testSurf :: T -> T -> SurfD
+testSurf outerRadius innerRadius = torus 0.7 0.3
 
 testImage :: Image Color
 testImage = const red
 
-testGeom :: ShadyGeometry Color
-testGeom = shadyGeometry { shadyImage = testImage, shadySurface = testSurf }
+testGeom :: T -> T -> ShadyGeometry Color
+testGeom o i = shadyGeometry { shadyImage = testImage, shadySurface = testSurf o i }
 
 testUI :: UI (ShadyGeometry Color)
-testUI = return testGeom
+testUI = do
+  outerRadius <- uiSliderF "Outer" 0 0.7 1
+  innerRadius <- uiSliderF "Inner" 0 0.3 1
+  return $ testGeom (pureD outerRadius) (pureD innerRadius)
 
 testEffect :: ShadyEffect Color
 testEffect = shadyEffect testUI

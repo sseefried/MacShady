@@ -15,6 +15,7 @@ void msRightMouseDragged(HsStablePtr stateRef, float x,float y);
 void msKeyDown(HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
 void msKeyUp(HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
 void msResize(HsStablePtr stateRef, unsigned int width, unsigned int height);
+void msSetFloatUniform(HsStablePtr stateRef, char *uniformName, float value);
 
 @interface MacShadyGLView : NSOpenGLView
 
