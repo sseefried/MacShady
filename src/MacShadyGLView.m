@@ -12,7 +12,7 @@ NSTimer            *timer;            // timer to update the view content
  * in pixel format. This can be set in Interface Builder but I have opted to enable it
  * programatically.
  */
-- (id)initWithFrame:(NSRect)frame stateRef:(HsStablePtr)stateRef
+- (id)initWithFrame:(NSRect)frame effectIndex:(int)effectIndex
 {
   self = [super initWithFrame: frame];
   if (self) {
@@ -32,7 +32,7 @@ NSTimer            *timer;            // timer to update the view content
 
     NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
 
-    self.stateRef = stateRef;
+    self.effectIndex = effectIndex;
     [self setPixelFormat:pf];
     [self setOpenGLContext:context];
   }
@@ -103,7 +103,7 @@ NSTimer            *timer;            // timer to update the view content
 
 - (void)initialise{
     [self initUpdateTimer];
-    msInit(self.stateRef);
+    msInit(self.effectIndex);
 }
 
 - (void)drawRect:(NSRect)dirtyRect
@@ -113,7 +113,7 @@ NSTimer            *timer;            // timer to update the view content
     initialised = YES;
     [self initialise];
   }
-  msDraw(self.stateRef);
+  msDraw(self.effectIndex);
   [[self openGLContext] flushBuffer];
 }
 
@@ -125,7 +125,7 @@ NSTimer            *timer;            // timer to update the view content
   } else {
     NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-    msMouseDown(self.stateRef, p.x, p.y);
+    msMouseDown(self.effectIndex, p.x, p.y);
   }
 }
 
@@ -138,7 +138,7 @@ NSTimer            *timer;            // timer to update the view content
 
     NSPoint p = [self convertPoint:[theEvent locationInWindow]
                             fromView:nil];
-    msMouseUp(self.stateRef, p.x, p.y);
+    msMouseUp(self.effectIndex, p.x, p.y);
   }
 }
 
@@ -150,7 +150,7 @@ NSTimer            *timer;            // timer to update the view content
   } else {
     NSPoint p = [self convertPoint:[theEvent locationInWindow]
                             fromView:nil];
-    msMouseDragged(self.stateRef, p.x, p.y);
+    msMouseDragged(self.effectIndex, p.x, p.y);
   }
 }
 
@@ -158,38 +158,38 @@ NSTimer            *timer;            // timer to update the view content
 {
   NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseDown(self.stateRef, p.x, p.y);
+  msRightMouseDown(self.effectIndex, p.x, p.y);
 }
 
 - (void)rightMouseUp:(NSEvent *)theEvent
 {
   NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseUp(self.stateRef, p.x, p.y);
+  msRightMouseUp(self.effectIndex, p.x, p.y);
 }
 
 - (void)rightMouseDragged:(NSEvent *)theEvent
 {
   NSPoint p = [self convertPoint:[theEvent locationInWindow]
                           fromView:nil];
-  msRightMouseDragged(self.stateRef, p.x, p.y);
+  msRightMouseDragged(self.effectIndex, p.x, p.y);
 }
 
 - (void)keyDown:(NSEvent *)theEvent
 {
-  msKeyDown(self.stateRef, [theEvent keyCode], [theEvent modifierFlags]);
+  msKeyDown(self.effectIndex, [theEvent keyCode], [theEvent modifierFlags]);
 }
 
 - (void)keyUp:(NSEvent *)theEvent
 {
-  msKeyUp(self.stateRef, [theEvent keyCode], [theEvent modifierFlags]);
+  msKeyUp(self.effectIndex, [theEvent keyCode], [theEvent modifierFlags]);
 }
 
 - (void)reshape
 {
   [[self openGLContext] update];
   NSRect bounds = [self bounds];
-  msResize(self.stateRef, bounds.size.width, bounds.size.height);
+  msResize(self.effectIndex, bounds.size.width, bounds.size.height);
 
 }
 /* This allows key down and key up events */

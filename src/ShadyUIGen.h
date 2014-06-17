@@ -17,6 +17,6 @@
 @interface ShadyUIGen : NSObject
 
 + (NSWindow *)uiFromSpec:(NSString *)uiSpecString error:(NSError **)error
-                stateRef:(HsStablePtr)stateRef;
+                effectIndex:(int)effectIndex;
 
 @end

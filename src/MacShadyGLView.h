@@ -1,26 +1,26 @@
 #import "HsFFI.h"
 #import <Cocoa/Cocoa.h>
 
-void msInit(HsStablePtr stateRef);
+void msInit(int effectIndex);
 
-void msDraw(HsStablePtr stateRef);
-void msMouseDown(HsStablePtr stateRef,float x, float y);
-void msMouseUp(HsStablePtr stateRef, float x, float y);
-void msMouseDragged(HsStablePtr stateRef, float x,float y);
+void msDraw(int effectIndex);
+void msMouseDown(int effectIndex,float x, float y);
+void msMouseUp(int effectIndex, float x, float y);
+void msMouseDragged(int effectIndex, float x,float y);
 
-void msRightMouseDown(HsStablePtr stateRef, float x, float y);
-void msRightMouseUp(HsStablePtr stateRef, float x, float y);
-void msRightMouseDragged(HsStablePtr stateRef, float x,float y);
+void msRightMouseDown(int effectIndex, float x, float y);
+void msRightMouseUp(int effectIndex, float x, float y);
+void msRightMouseDragged(int effectIndex, float x,float y);
 
-void msKeyDown(HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
-void msKeyUp(HsStablePtr stateRef, unsigned short keyCode, unsigned long modifierFlags);
-void msResize(HsStablePtr stateRef, unsigned int width, unsigned int height);
-void msSetFloatUniform(HsStablePtr stateRef, char *uniformName, float value);
+void msKeyDown(int effectIndex, unsigned short keyCode, unsigned long modifierFlags);
+void msKeyUp(int effectIndex, unsigned short keyCode, unsigned long modifierFlags);
+void msResize(int effectIndex, unsigned int width, unsigned int height);
+void msSetFloatUniform(int effectIndex, char *uniformName, float value);
 
 @interface MacShadyGLView : NSOpenGLView
 
-@property (assign) HsStablePtr stateRef;
+@property (assign) int effectIndex;
 
-- (id)initWithFrame:(NSRect) frame stateRef:(HsStablePtr)stateRef;
+- (id)initWithFrame:(NSRect) frame effectIndex:(int)effectIndex;
 
 @end

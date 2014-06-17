@@ -45,9 +45,10 @@ default: MacShady.app/Contents/MacOS/MacShady
 
 $(SRC)/MacShadyGLView.o: $(SRC)/MacShadyGLView.h
 $(SRC)/ShadyFloatSlider.o: $(SRC)/ShadyFloatSlider.h
-$(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h
+$(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h $(SRC)/MacShadyGLView.o
 
-$(SRC)/AppDelegate.o: $(SRC)/MSState.o
+$(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/ShadyUIGen.o
+
 $(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o $(SRC)/MatrixUtil.o \
                       $(SRC)/MSState.o
 $(SRC)/App.o:         $(SRC)/NSLog.o

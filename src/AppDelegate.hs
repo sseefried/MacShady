@@ -46,7 +46,7 @@ objc_implementation ['makeMSStateRef] [cunit|
   NSLog(@"Application did finish launching!");
   typename HsStablePtr stateRef = makeMSStateRef();
   typename NSError *e = nil;
-  self.window = [ShadyUIGen uiFromSpec:@"[ { \"sort\": \"float_slider\", \"title\": \"Spikes\", \"glslUniform\": \"spikes\", \"min\": 1, \"value\":5, \"max\": 15 }]" error:&e stateRef: stateRef];
+  self.window = [ShadyUIGen uiFromSpec:@"[ { \"sort\": \"float_slider\", \"title\": \"Spikes\", \"glslUniform\": \"spikes\", \"min\": 1, \"value\":5, \"max\": 15 }]" error:&e effectIndex: 0];
 }
 
 @end

@@ -10,11 +10,11 @@
 
 @implementation ShadyUIGen
 
-+ (NSWindow *)uiFromSpec:(NSString *)uiSpecString error:(NSError **)error stateRef:(HsStablePtr)stateRef
++ (NSWindow *)uiFromSpec:(NSString *)uiSpecString error:(NSError **)error effectIndex:(int)effectIndex
 {
   NSArray *uiSpec = [ShadyUIGen parseJSONSpec:uiSpecString error:error];
   if (!*error) {
-    return [ShadyUIGen windowFromUISpec:uiSpec stateRef: stateRef];
+    return [ShadyUIGen windowFromUISpec:uiSpec effectIndex: effectIndex];
   }
   return nil;
 }
@@ -94,7 +94,7 @@
 }
 
 
-+ (NSWindow *)windowFromUISpec:(NSArray *)uiSpec stateRef:(HsStablePtr)stateRef
++ (NSWindow *)windowFromUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex
 {
   // Create a new dynamic window with a blue background
   CGFloat width = 800, height = 600;
@@ -156,7 +156,7 @@
   }
 
 
-  MacShadyGLView *openGLView = [[MacShadyGLView alloc] initWithFrame: frame stateRef: stateRef];
+  MacShadyGLView *openGLView = [[MacShadyGLView alloc] initWithFrame: frame effectIndex: effectIndex];
   openGLView.translatesAutoresizingMaskIntoConstraints = NO;
   [view addSubview:openGLView];
 
