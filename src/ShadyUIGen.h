@@ -16,7 +16,7 @@
 
 @interface ShadyUIGen : NSObject
 
-+ (NSWindow *)uiFromSpec:(NSString *)uiSpecString error:(NSError **)error
-                effectIndex:(int)effectIndex;
++ (NSWindow *)uiFromSpec:(NSString *)uiSpecString
+                effectIndex:(int)effectIndex error:(NSError **)error;
 
 @end

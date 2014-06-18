@@ -6,7 +6,7 @@ import           Foreign.StablePtr
 import           Data.IORef
 import           Foreign.C.Types
 import           Foreign.C.String
-import           Graphics.Rendering.OpenGL
+import           Graphics.Rendering.OpenGL hiding (Color)
 import           Graphics.Rendering.OpenGL.Raw
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -53,9 +53,9 @@ pointsToArrayBuffer = foldl f []
     c = fromRational . toRational
     f rest (x,y) = c x : c y : rest
 
-compileAndLinkEffect :: IO Program
-compileAndLinkEffect  = do
-  let effect = compileEffect "effect" testEffect
+compileAndLinkEffect :: MSEffectIndex -> ShadyEffect Color -> IO Program
+compileAndLinkEffect i shadyEffect = do
+  let effect = compileEffect ("effect_" ++ show i) shadyEffect
   vs <- loadShader VertexShader (BS.pack $ vertexShader effect) >>= \case
           Left errs -> nsLog errs >> exitFailure
           Right vs  -> return vs
@@ -75,8 +75,7 @@ compileAndLinkEffect  = do
 
 -- called immediately after OpenGL context established
 msInit :: MSEffectIndex -> IO ()
-msInit effectIndex = do
-
+msInit i = initMSEffectState i $ \shadyEffect -> do
   nsLog $ "msInit called"
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
   bindBuffer ArrayBuffer $= Just vbo
@@ -86,7 +85,7 @@ msInit effectIndex = do
     let meshLen = fromIntegral (length meshData) * fromIntegral (sizeOf (undefined :: GLfloat))
     bufferData ArrayBuffer $= (meshLen, ptr, StaticDraw)
 
-  p <- compileAndLinkEffect
+  p <- compileAndLinkEffect i shadyEffect
 
   zoom <- get (uniformLocation p "zoom")
   pan  <- get (uniformLocation p "pan")
@@ -110,7 +109,7 @@ msInit effectIndex = do
   -- showing. It also important that a non-zero depth size is set in
   -- Cocoa's NSOpenGLView.
   depthFunc $= Just Less
-  writeMSEffectState effectIndex (initialMSEffectState p zoom pan aRow bRow cRow)
+  return $ initialMSEffectState p zoom pan aRow bRow cRow shadyEffect undefined
 
 theMesh :: [(Float, Float)]
 theMesh = mesh mESH_SIZE 2

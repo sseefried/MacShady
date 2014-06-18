@@ -4,6 +4,7 @@
 module Shady.CompileEffect(
   -- data types
   ShadyEffect(..), ShadyGeometry(..), WebGLEffect {-opaque-}, UIElem {-opaque-}, UI {-opaque-},
+  Color,
   -- smart constructors for UIElem
   uiTime, uiSliderF, uiSliderWithStepF, uiSliderI, {- monad instance -}
   -- smart constructors for ShadyEffect and ShadyGeometry record types
@@ -36,7 +37,6 @@ import Data.NameM
 
 -- FIXME: Remove
 import Data.Maclaurin
-
 
 data ShadyEffect c = ShadyEffect {
   shadyGeometryUI  :: UI (ShadyGeometry c),

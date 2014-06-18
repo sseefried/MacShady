@@ -9,31 +9,19 @@ module AppDelegate (objc_initialise) where
   -- language-c-inline
 import Language.C.Quote.ObjC
 import Language.C.Inline.ObjC
-import Foreign.StablePtr
-import Data.IORef
 
--- friends
-import MSState
-
---
---
---
-makeMSStateRef :: IO (IORef (Maybe MSState))
-makeMSStateRef = newIORef Nothing
-
-objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h", "HsFFI.h"]
+objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h"]
 
 objc_interface [cunit|
+
 @interface AppDelegate : NSResponder <NSApplicationDelegate>
 
-@property (retain) typename NSWindow *window;
-
+@property typename NSWindow *window;
 
 @end
 |]
 
-
-objc_implementation ['makeMSStateRef] [cunit|
+objc_implementation [] [cunit|
 
 @interface AppDelegate ()
 
@@ -44,15 +32,12 @@ objc_implementation ['makeMSStateRef] [cunit|
 - (void)applicationDidFinishLaunching:(typename NSNotification *)aNotification
 {
   NSLog(@"Application did finish launching!");
-  typename HsStablePtr stateRef = makeMSStateRef();
   typename NSError *e = nil;
-  self.window = [ShadyUIGen uiFromSpec:@"[ { \"sort\": \"float_slider\", \"title\": \"Spikes\", \"glslUniform\": \"spikes\", \"min\": 1, \"value\":5, \"max\": 15 }]" error:&e effectIndex: 0];
+  self.window = [ShadyUIGen uiFromSpec:@"[ { \"sort\": \"float_slider\", \"title\": \"Spikes\", \"glslUniform\": \"spikes\", \"min\": 1, \"value\":5, \"max\": 15 }]" effectIndex: 0 error:&e];
 }
 
 @end
 
 |]
-
-
 
 objc_emit

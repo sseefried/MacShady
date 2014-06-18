@@ -49,6 +49,8 @@ $(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h $(SRC)/MacShadyGLView.o
 
 $(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/ShadyUIGen.o
 
+$(SRC)/Main.o: $(SRC)/Shady/CompileEffect.o
+
 $(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/Shady/CompileEffect.o $(SRC)/MatrixUtil.o \
                       $(SRC)/MSState.o
 $(SRC)/App.o:         $(SRC)/NSLog.o
@@ -57,6 +59,8 @@ $(SRC)/Main.o:        $(SRC)/App.o $(SRC)/AppDelegate.o
 $(SRC)/NSLog_objc.m:       $(SRC)/NSLog.o
 $(SRC)/App_objc.m:         $(SRC)/App.o
 $(SRC)/AppDelegate_objc.m: $(SRC)/AppDelegate.o
+
+$(SRC)/MSState.o: $(SRC)/Shady/CompileEffect.o
 
 MacShady: $(OBJS)
 	$(HC) -o $@ $^ $(LDFLAGS)

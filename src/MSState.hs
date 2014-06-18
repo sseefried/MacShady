@@ -6,8 +6,19 @@ import qualified Graphics.Rendering.OpenGL as O
 import           Data.IORef
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Shady.CompileEffect (ShadyEffect(..), Color)
 import           System.IO.Unsafe -- dun dun dun
 
+
+--
+-- The interaction between Haskell and Objective-C forces us to initialise the
+-- state for a Shady effect in a step-wise manner. We must inform the
+-- ShadyUIGen object of the uniform names and types for the Shady effect.
+-- It is only once an OpenGL context has been opened via the Cocoa library
+-- that we can compile and link the GLSL program and initialise other values.
+-- Thus
+--
+--
 
 type MSEffectIndex = Int
 
@@ -23,6 +34,9 @@ data MSZoom = MSZoom { mszVal :: Float, mszUniformLoc :: O.UniformLocation }
 data MSPan  = MSPan  { mspVal :: (Float, Float), mspUniformLoc :: O.UniformLocation }
 
 
+
+data MSEffect = MSJustShadyEffect (ShadyEffect Color) | MSFullEffectState MSEffectState
+
 data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
                                    , mseMouseButton     :: Maybe MouseButton
                                    , mseRotateVelocity  :: (Float, Float)
@@ -30,17 +44,18 @@ data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
                                    , mseZoom            :: MSZoom
                                    , msePan             :: MSPan
                                    , mseRotationMatrix  :: MSRotationMatrix
+                                   , mseShadyEffect     :: ShadyEffect Color
+                                   , mseUniforms        :: Map Int O.UniformLocation
                                    }
 
 -- Global state
 data MSState = MSState { msEffectIndex  :: MSEffectIndex
-                       , msEffectStates :: Map MSEffectIndex MSEffectState  }
+                       , msEffectStates :: Map MSEffectIndex MSEffect  }
 
 -- dun dun dun!
 msStateRef :: IORef (MSState)
 {-# NOINLINE msStateRef #-}
 msStateRef = unsafePerformIO . newIORef $ MSState 0 M.empty
-
 
 --
 -- [withMSEffect effectIndex io]
@@ -51,47 +66,32 @@ withMSEffectState :: MSEffectIndex -> (MSEffectState -> IO MSEffectState) -> IO 
 withMSEffectState effectIndex io = do
   msState <- readIORef msStateRef
   case M.lookup effectIndex (msEffectStates msState) of
-    Just es  -> do
+    Just (MSFullEffectState es)  -> do
       es' <- io es
       writeIORef msStateRef $
-        msState { msEffectStates = M.insert effectIndex es' (msEffectStates msState)}
-    Nothing -> return ()
+        msState { msEffectStates = M.insert effectIndex (MSFullEffectState es') (msEffectStates msState)}
+    _ -> return ()
 
--- For initialising as MSEffectState. Only used in msInit
-writeMSEffectState :: MSEffectIndex -> MSEffectState -> IO ()
-writeMSEffectState i es = do
-  modifyIORef msStateRef $ \s -> s { msEffectStates = M.insert i es (msEffectStates s)}
 
---
--- [withMSState] takes a function [io] which has type [MSState -> IO ()].
--- It dereferences the stable pointer, reads from the [IORef] and if the value is
--- [Just msState] then evaluates [io msState].
--- If the value is [Nothing] it does nothing (i.e. [return ()])
---
---withMSStateRef :: MSStateRef -> (MSState -> IO ()) -> IO ()
---withMSStateRef sr io = do
---  ioRef <- deRefStablePtr sr
---  mbMSState <- readIORef ioRef
---  case mbMSState of
---    Just msState -> io msState
---    Nothing      -> return ()
+-- For initialising an MSEffectState. Only used in msInit in Hooks module
+initMSEffectState :: MSEffectIndex -> (ShadyEffect Color -> IO MSEffectState) -> IO ()
+initMSEffectState effectIndex io = do
+  msState <- readIORef msStateRef
+  case M.lookup effectIndex (msEffectStates msState) of
+    Just (MSJustShadyEffect effect)  -> do
+      es <- io effect
+      writeIORef msStateRef $
+        msState { msEffectStates = M.insert effectIndex (MSFullEffectState es) (msEffectStates msState)}
+    _ -> return ()
 
---writeMSStateRef :: MSStateRef -> MSState -> IO ()
---writeMSStateRef sr v = do
---  ioRef <- deRefStablePtr sr
---  writeIORef ioRef (Just v)
-
-----
----- [modifyMSStateRef] applies [f] to the MSState object only
----- if it is of form [Just msState]. It does nothing for [Nothing]
-----
---modifyMSStateRef :: MSStateRef -> (MSState -> MSState) -> IO ()
---modifyMSStateRef sr f = do
---  ioRef     <- deRefStablePtr sr
---  mbMSState <- readIORef ioRef
---  case mbMSState of
---    Just msState -> writeIORef ioRef (Just . f $ msState)
---    Nothing      -> return ()
+initMSEffect :: ShadyEffect Color -> IO MSEffectIndex
+initMSEffect shadyEffect = do
+  s <- readIORef msStateRef
+  let i = msEffectIndex s
+  writeIORef msStateRef $
+    s { msEffectIndex = i + 1
+      , msEffectStates = M.insert i (MSJustShadyEffect shadyEffect) (msEffectStates s) }
+  return i
 
 
 initialMSEffectState :: O.Program
@@ -100,8 +100,10 @@ initialMSEffectState :: O.Program
                -> O.UniformLocation
                -> O.UniformLocation
                -> O.UniformLocation
+               -> ShadyEffect Color
+               -> Map Int O.UniformLocation
                -> MSEffectState
-initialMSEffectState p zoom pan aRow bRow cRow =
+initialMSEffectState p zoom pan aRow bRow cRow shadyEffect uniformLocMap =
   MSEffectState { mseMouseDownPos   = (0,0)
                 , mseRotationMatrix = MSRotationMatrix (identity 3) (aRow, bRow, cRow)
                 , mseMouseButton    = Nothing
@@ -109,4 +111,6 @@ initialMSEffectState p zoom pan aRow bRow cRow =
                 , mseGLSLProgram    = p
                 , mseZoom           = MSZoom 1 zoom
                 , msePan            = MSPan (0,0) pan
+                , mseShadyEffect    = shadyEffect
+                , mseUniforms       = uniformLocMap
                 }

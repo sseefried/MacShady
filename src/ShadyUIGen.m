@@ -10,7 +10,7 @@
 
 @implementation ShadyUIGen
 
-+ (NSWindow *)uiFromSpec:(NSString *)uiSpecString error:(NSError **)error effectIndex:(int)effectIndex
++ (NSWindow *)uiFromSpec:(NSString *)uiSpecString effectIndex:(int)effectIndex error:(NSError **)error
 {
   NSArray *uiSpec = [ShadyUIGen parseJSONSpec:uiSpecString error:error];
   if (!*error) {

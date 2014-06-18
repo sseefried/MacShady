@@ -7,6 +7,6 @@ import Language.C.Inline.ObjC
 objc_import ["<Foundation/Foundation.h>"]
 
 nsLog :: String -> IO ()
-nsLog msg = $(objc ['msg] ''() [cexp| NSLog(@"%@", msg) |])
+nsLog msg = $(objc ['msg :> ''String] (void [cexp| NSLog(@"%@", msg) |]))
 
 objc_emit
