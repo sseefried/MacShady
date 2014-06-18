@@ -6,7 +6,7 @@ import qualified Graphics.Rendering.OpenGL as O
 import           Data.IORef
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Shady.CompileEffect (ShadyEffect(..), Color)
+import           Shady.CompileEffect (GLSLEffect)
 import           System.IO.Unsafe -- dun dun dun
 
 
@@ -35,7 +35,7 @@ data MSPan  = MSPan  { mspVal :: (Float, Float), mspUniformLoc :: O.UniformLocat
 
 
 
-data MSEffect = MSJustShadyEffect (ShadyEffect Color) | MSFullEffectState MSEffectState
+data MSEffect = MSJustGLSLEffect (GLSLEffect) | MSFullEffectState MSEffectState
 
 data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
                                    , mseMouseButton     :: Maybe MouseButton
@@ -44,7 +44,7 @@ data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
                                    , mseZoom            :: MSZoom
                                    , msePan             :: MSPan
                                    , mseRotationMatrix  :: MSRotationMatrix
-                                   , mseShadyEffect     :: ShadyEffect Color
+                                   , mseGLSLEffect     :: GLSLEffect
                                    , mseUniforms        :: Map Int O.UniformLocation
                                    }
 
@@ -74,23 +74,23 @@ withMSEffectState effectIndex io = do
 
 
 -- For initialising an MSEffectState. Only used in msInit in Hooks module
-initMSEffectState :: MSEffectIndex -> (ShadyEffect Color -> IO MSEffectState) -> IO ()
+initMSEffectState :: MSEffectIndex -> (GLSLEffect -> IO MSEffectState) -> IO ()
 initMSEffectState effectIndex io = do
   msState <- readIORef msStateRef
   case M.lookup effectIndex (msEffectStates msState) of
-    Just (MSJustShadyEffect effect)  -> do
+    Just (MSJustGLSLEffect effect)  -> do
       es <- io effect
       writeIORef msStateRef $
         msState { msEffectStates = M.insert effectIndex (MSFullEffectState es) (msEffectStates msState)}
     _ -> return ()
 
-initMSEffect :: ShadyEffect Color -> IO MSEffectIndex
+initMSEffect :: GLSLEffect -> IO MSEffectIndex
 initMSEffect shadyEffect = do
   s <- readIORef msStateRef
   let i = msEffectIndex s
   writeIORef msStateRef $
     s { msEffectIndex = i + 1
-      , msEffectStates = M.insert i (MSJustShadyEffect shadyEffect) (msEffectStates s) }
+      , msEffectStates = M.insert i (MSJustGLSLEffect shadyEffect) (msEffectStates s) }
   return i
 
 
@@ -100,10 +100,10 @@ initialMSEffectState :: O.Program
                -> O.UniformLocation
                -> O.UniformLocation
                -> O.UniformLocation
-               -> ShadyEffect Color
+               -> GLSLEffect
                -> Map Int O.UniformLocation
                -> MSEffectState
-initialMSEffectState p zoom pan aRow bRow cRow shadyEffect uniformLocMap =
+initialMSEffectState p zoom pan aRow bRow cRow glslEffect uniformLocMap =
   MSEffectState { mseMouseDownPos   = (0,0)
                 , mseRotationMatrix = MSRotationMatrix (identity 3) (aRow, bRow, cRow)
                 , mseMouseButton    = Nothing
@@ -111,6 +111,6 @@ initialMSEffectState p zoom pan aRow bRow cRow shadyEffect uniformLocMap =
                 , mseGLSLProgram    = p
                 , mseZoom           = MSZoom 1 zoom
                 , msePan            = MSPan (0,0) pan
-                , mseShadyEffect    = shadyEffect
+                , mseGLSLEffect     = glslEffect
                 , mseUniforms       = uniformLocMap
                 }

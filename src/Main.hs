@@ -8,13 +8,11 @@ import qualified NSLog       as NSLog
 
 -- FIXME: These imports might not be necessary later
 import           MSState
-import           Shady.CompileEffect (testEffect)
+import           Shady.CompileEffect (testEffect, compileEffect)
 
 main :: IO ()
 main = do
-  initMSEffect testEffect -- FIXME: Remove later
   App.objc_initialise
   AppDelegate.objc_initialise
   NSLog.objc_initialise
   App.main
-

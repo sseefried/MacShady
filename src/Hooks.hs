@@ -17,6 +17,8 @@ import           Shady.CompileEffect
 import           System.Exit
 import           Data.Matrix (Matrix)
 import qualified Data.Matrix as M
+import           Data.Map (Map)
+import qualified Data.Map as Map
 import           Data.Maybe
 
 -- friends
@@ -46,16 +48,16 @@ foreign export ccall msKeyUp             :: MSEffectIndex -> CUShort -> CULong -
 foreign export ccall msResize            :: MSEffectIndex -> CInt    -> CInt   -> IO ()
 foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CString -> CFloat -> IO ()
 
-
 pointsToArrayBuffer :: [(Float, Float)] -> [GLfloat]
 pointsToArrayBuffer = foldl f []
   where
     c = fromRational . toRational
     f rest (x,y) = c x : c y : rest
 
-compileAndLinkEffect :: MSEffectIndex -> ShadyEffect Color -> IO Program
-compileAndLinkEffect i shadyEffect = do
-  let effect = compileEffect ("effect_" ++ show i) shadyEffect
+compileAndLinkEffect :: MSEffectIndex -> GLSLEffect -> IO (Program, Map Int UniformLocation)
+compileAndLinkEffect i effect = do
+  let uniformNames = uniformNamesOfGLSLEffect effect
+
   vs <- loadShader VertexShader (BS.pack $ vertexShader effect) >>= \case
           Left errs -> nsLog errs >> exitFailure
           Right vs  -> return vs
@@ -67,11 +69,12 @@ compileAndLinkEffect i shadyEffect = do
           Left errs -> nsLog errs >> exitFailure
           Right p   -> return p
 
+  uniformLocs <- mapM (get . (uniformLocation p)) uniformNames
+  let uniformMap = foldl insertUniform Map.empty (zip [0..] uniformLocs)
+      insertUniform m (i, uniformName) = Map.insert i uniformName m
   currentProgram $= Just p
-
   attribLocation  p "meshCoords"      $= AttribLocation 0
-
-  return p
+  return (p, uniformMap)
 
 -- called immediately after OpenGL context established
 msInit :: MSEffectIndex -> IO ()
@@ -85,7 +88,7 @@ msInit i = initMSEffectState i $ \shadyEffect -> do
     let meshLen = fromIntegral (length meshData) * fromIntegral (sizeOf (undefined :: GLfloat))
     bufferData ArrayBuffer $= (meshLen, ptr, StaticDraw)
 
-  p <- compileAndLinkEffect i shadyEffect
+  (p, uniformMap) <- compileAndLinkEffect i shadyEffect
 
   zoom <- get (uniformLocation p "zoom")
   pan  <- get (uniformLocation p "pan")
@@ -109,7 +112,8 @@ msInit i = initMSEffectState i $ \shadyEffect -> do
   -- showing. It also important that a non-zero depth size is set in
   -- Cocoa's NSOpenGLView.
   depthFunc $= Just Less
-  return $ initialMSEffectState p zoom pan aRow bRow cRow shadyEffect undefined
+  return $ initialMSEffectState p zoom pan aRow bRow cRow shadyEffect uniformMap
+
 
 theMesh :: [(Float, Float)]
 theMesh = mesh mESH_SIZE 2

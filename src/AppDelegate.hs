@@ -10,6 +10,13 @@ module AppDelegate (objc_initialise) where
 import Language.C.Quote.ObjC
 import Language.C.Inline.ObjC
 
+import           Data.Map (Map)
+import qualified Data.Map as M
+
+-- friends
+import MSState
+import Shady.CompileEffect
+
 objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h"]
 
 objc_interface [cunit|
@@ -21,7 +28,13 @@ objc_interface [cunit|
 @end
 |]
 
-objc_implementation [] [cunit|
+jsonForEffect :: IO String
+jsonForEffect = do
+  let glslEffect = compileEffect "effect_0" testEffect
+  initMSEffect glslEffect
+  return $ uiSpecOfGLSLEffect glslEffect
+
+objc_implementation [Typed 'jsonForEffect ] [cunit|
 
 @interface AppDelegate ()
 
@@ -33,7 +46,8 @@ objc_implementation [] [cunit|
 {
   NSLog(@"Application did finish launching!");
   typename NSError *e = nil;
-  self.window = [ShadyUIGen uiFromSpec:@"[ { \"sort\": \"float_slider\", \"title\": \"Spikes\", \"glslUniform\": \"spikes\", \"min\": 1, \"value\":5, \"max\": 15 }]" effectIndex: 0 error:&e];
+  NSLog(@"%@", jsonForEffect());
+  self.window = [ShadyUIGen uiFromSpec: jsonForEffect() effectIndex: 0 error:&e];
 }
 
 @end

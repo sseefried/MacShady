@@ -20,6 +20,7 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -package wl-pprint \
           -package shady-graphics \
           -package matrix \
+          -package aeson \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
 OBJS = $(SRC)/Main.o \

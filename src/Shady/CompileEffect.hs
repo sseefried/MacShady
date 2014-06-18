@@ -1,17 +1,17 @@
 {-# LANGUAGE RankNTypes, GADTs, TypeFamilies, ScopedTypeVariables, FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
 module Shady.CompileEffect(
   -- data types
-  ShadyEffect(..), ShadyGeometry(..), WebGLEffect {-opaque-}, UIElem {-opaque-}, UI {-opaque-},
+  ShadyEffect(..), ShadyGeometry(..), GLSLEffect {-opaque-}, UIElem {-opaque-}, UI {-opaque-},
   Color,
   -- smart constructors for UIElem
-  uiTime, uiSliderF, uiSliderWithStepF, uiSliderI, {- monad instance -}
+  uiTime, uiSliderF, uiSliderI, {- monad instance -}
   -- smart constructors for ShadyEffect and ShadyGeometry record types
   shadyEffect, shadyGeometry,
-  -- functions that operate on opaque data type WebGLEffect
-  compileEffect,                       -- constructs   WebGLEffect
-  fragmentShader, vertexShader, -- deconstructs WebGLEffect
+  -- functions that operate on opaque data type GLSLEffect
+  compileEffect,                       -- constructs   GLSLEffect
+  fragmentShader, vertexShader, uniformNamesOfGLSLEffect, uiSpecOfGLSLEffect,-- deconstructs GLSLEffect
   mesh, -- FIXME: move to another module
   testEffect -- FIXME: Move
 ) where
@@ -34,6 +34,11 @@ import Shady.Language.Exp   (R2, R3, R3E, pureE, patE, patT, ExpT(..), E(..),
 import Shady.Misc           (EyePos)
 import TypeUnary.Vec        (vec3, Vec1)
 import Data.NameM
+import Data.Aeson as JSON
+import qualified Data.ByteString.Lazy.Char8 as BS
+import Data.Maybe
+import Data.List (intersperse)
+
 
 -- FIXME: Remove
 import Data.Maclaurin
@@ -66,13 +71,8 @@ data UIElem a where
             -> Float  -- ^ lower bound
             -> Float  -- ^ default
             -> Float  -- ^ upper bound
+            -> Maybe Int -- ^ ticks
             -> UIElem (E (Vec1 Float))
-  UISliderWithStepF :: String -- ^ title
-                    -> Float  -- ^ lower bound
-                    -> Float  -- ^ default
-                    -> Float  -- ^ step (step <= upperbound - lowerbound)
-                    -> Float  -- ^ upper bound
-                    -> UIElem (E (Vec1 Float))
   UISliderI :: String -- ^ title
             -> Int    -- ^ lower bound
             -> Int    -- ^ default
@@ -80,20 +80,20 @@ data UIElem a where
             -> UIElem (E (Vec1 Int))
   UITime    :: UIElem (E (Vec1 Float))
 
+data UIElemWithUniform a = UIElemWithUniform String (UIElem a)
+
 data UI a where
   UIElem  :: (FromE a, HasType (ExpT a)) => UIElem a -> UI a
   UIBind  :: UI a -> (a -> UI b) -> UI b
   UIReturn :: a -> UI a
 
-data UntypedUIElem = UUISliderF String Float Float Float
-                   | UUISliderWithStepF String Float Float Float Float
+data UntypedUIElem = UUISliderF String Float Float Float (Maybe Int)
                    | UUISliderI String Int Int Int
                    | UUITime
 
 uiElemToUntyped :: UIElem a -> UntypedUIElem
 uiElemToUntyped e = case e of
-  (UISliderF s l d u)              -> UUISliderF s l d u
-  (UISliderWithStepF s l d step u) -> UUISliderWithStepF s l d step u
+  (UISliderF s l d u mt)           -> UUISliderF s l d u mt
   (UISliderI s l d u)              -> UUISliderI s l d u
   UITime                           -> UUITime
 
@@ -102,10 +102,9 @@ elemName uniquePrefix e = do
   nm <- genName
   let suffix :: String
       suffix = case e of
-                 UISliderWithStepF _ _ _ _ _ -> "slider_with_step_f"
-                 UISliderF _ _ _ _ -> "slider_f"
-                 UISliderI _ _ _ _ -> "slider_i"
-                 UITime            -> "time"
+                 UISliderF _ _ _ _ _ -> "float_slider"
+                 UISliderI _ _ _ _   -> "int_slider"
+                 UITime              -> "time"
   return (printf "%s_%s_%s" uniquePrefix nm suffix)
 
 -- Untyped version of Variables in Shady.Language.Exp
@@ -114,7 +113,7 @@ data VU = VU { uVarName :: String, uVarType :: String }
 instance Show VU where
   show vu = printf "uniform %s %s" (uVarType vu) (uVarName vu)
 
-runUINameM :: String -> UI a -> NameM (a, [(VU,UntypedUIElem)])
+runUINameM :: String -> UI a -> NameM (a, [(VU,String)])
 runUINameM uniquePrefix ui = case ui of
   UIReturn a          -> return (a, [])
   UIBind (UIElem e) f -> do
@@ -122,16 +121,16 @@ runUINameM uniquePrefix ui = case ui of
     let vu = VU name (show (patT p))
         p = pat $ name
     (a, varsAndElems) <- go . f $ (fromE . patE $ p)
-    return $ (a, (vu, uiElemToUntyped e):varsAndElems)
+    return $ (a, (vu, uiElemToJSONString name e):varsAndElems)
   UIBind nextUI f -> do
     (a, varsAndElems)  <- go nextUI
     (a', varsAndElems') <- go (f a)
     return (a', varsAndElems ++ varsAndElems')
   where
-    go :: UI a -> NameM (a, [(VU, UntypedUIElem)])
+    go :: UI a -> NameM (a, [(VU, String)])
     go = runUINameM uniquePrefix
 
-runUI :: String -> UI a -> (a, [(VU, UntypedUIElem)])
+runUI :: String -> UI a -> (a, [(VU, String)])
 runUI uniquePrefix = runNameM . runUINameM uniquePrefix
 
 instance Monad UI where
@@ -140,8 +139,8 @@ instance Monad UI where
 
 type VertexPosAttribute = R2
 
-data WebGLEffect = WebGLEffect (GLSL ((), (R3, (R3, (R3, (R3, Zoom)))))
-                               VertexPosAttribute) [VU] [UntypedUIElem]
+data GLSLEffect = GLSLEffect (GLSL ((), (R3, (R3, (R3, (R3, Zoom)))))
+                               VertexPosAttribute) [VU] [String]
 
 toShader :: [VU] -> String -> String
 toShader uniforms shader = printf "%s\n%s\n%s" shaderHeaders uniformDecs shader
@@ -165,17 +164,23 @@ toShader uniforms shader = printf "%s\n%s\n%s" shaderHeaders uniformDecs shader
 
 
 --
--- | A selector function for extracting fragment shader from WebGLEffect
+-- | A selector function for extracting fragment shader from GLSLEffect
 --
-fragmentShader  :: WebGLEffect -> String
-fragmentShader (WebGLEffect (GLSL _ fs _ _) uniforms _) = toShader uniforms fs
+fragmentShader  :: GLSLEffect -> String
+fragmentShader (GLSLEffect (GLSL _ fs _ _) uniforms _) = toShader uniforms fs
 
 --
--- | A selector function for extracting vertex shader from WebGLEffect
+-- | A selector function for extracting vertex shader from GLSLEffect
 --
-vertexShader :: WebGLEffect -> String
-vertexShader (WebGLEffect (GLSL vs _ _ _) uniforms _) = toShader uniforms vs
+vertexShader :: GLSLEffect -> String
+vertexShader (GLSLEffect (GLSL vs _ _ _) uniforms _) = toShader uniforms vs
 
+uniformNamesOfGLSLEffect :: GLSLEffect -> [String]
+uniformNamesOfGLSLEffect (GLSLEffect _ uniforms _) = map uVarName uniforms
+
+-- Produces UI Specification in JSON format
+uiSpecOfGLSLEffect :: GLSLEffect -> String
+uiSpecOfGLSLEffect (GLSLEffect _ _ jsonStrings) = "[" ++ (concat $ (intersperse ", " jsonStrings)) ++ "]"
 
 --
 -- | Compiles a ShadyEffect to a GLSL program.
@@ -186,8 +191,8 @@ vertexShader (WebGLEffect (GLSL vs _ _ _) uniforms _) = toShader uniforms vs
 --
 -- (For definitions of 'uniform' and 'attribute' see the GLSL spec)
 --
-compileEffect :: forall c. (HasColor c) => String -> ShadyEffect c -> WebGLEffect
-compileEffect prefix e = WebGLEffect glsl uniforms jsons
+compileEffect :: forall c. (HasColor c) => String -> ShadyEffect c -> GLSLEffect
+compileEffect prefix e = GLSLEffect glsl uniforms jsons
   where
     glsl = shaderProgram $ wrapSurfForEffect eyePosE (\() -> fullSurf)
     (uniforms,jsons) = unzip uniformsAndJsons
@@ -213,24 +218,10 @@ uiTime    = UIElem UITime
 --
 -- If these conditions do not hold then "sensible" values are substituted.
 --
-uiSliderF :: String -> Float -> Float -> Float -> UI (E (Vec1 Float))
-uiSliderF title minVal defaultVal maxVal = UIElem (UISliderF title minVal' defaultVal' maxVal')
-  where (minVal', defaultVal', maxVal', _) = sensible (minVal, defaultVal, maxVal, 0)
-
---
--- | Creates a slider that produces Float values with a step value.
---
--- Condtions:
---   minVal <= defaultVal <= maxVal
---   step <= maxVal - minVal
---
--- If these conditions do not hold then "sensible" values are substituted.
---
-uiSliderWithStepF :: String -> Float -> Float -> Float -> Float -> UI (E (Vec1 Float))
-uiSliderWithStepF title minVal defaultVal maxVal step  =
-  UIElem (UISliderWithStepF title minVal' defaultVal' maxVal' step')
-  where
-    (minVal', defaultVal', maxVal', step') = sensible (minVal, defaultVal, maxVal, step)
+uiSliderF :: String -> Float -> Float -> Float -> Maybe Int -> UI (E (Vec1 Float))
+uiSliderF title minVal defaultVal maxVal mbTicks =
+  UIElem (UISliderF title minVal' defaultVal' maxVal' mbTicks)
+  where (minVal', defaultVal', maxVal') = sensible (minVal, defaultVal, maxVal)
 
 --
 -- | Creates a slider that produces Int values.
@@ -244,24 +235,24 @@ uiSliderI :: String -> Int -> Int -> Int -> UI (E (Vec1 Int))
 uiSliderI title minVal defaultVal maxVal =
   UIElem (UISliderI title minVal' defaultVal' maxVal')
   where
-    (minVal', defaultVal', maxVal',_) = sensible (minVal, defaultVal, maxVal, 0)
+    (minVal', defaultVal', maxVal') = sensible (minVal, defaultVal, maxVal)
 
 --
 -- A helper function to clamp "bad" slider values to sensible ones.
 --
 -- Examples:
---  sensible (0, 2, -3,   1)  == (0, 0, 0, 0)
---  sensible (0, 5,  3,   1)  == (0, 3, 3, 1)
---  sensible (0, -5, 3,   1)  == (0, 0, 3, 1)
---  sensible (0, 2,  5,  10)  == (0, 2, 5, 5)
---  sensible (0, 2,  5, -10)  == (0, 2, 5, 0)
+--  sensible (0, 2, -3)  == (0, 0, 0)
+--  sensible (0, 5,  3)  == (0, 3, 3)
+--  sensible (0, -5, 3)  == (0, 0, 3)
+--  sensible (0, 2,  5)  == (0, 2, 5)
+--  sensible (0, 2,  5)  == (0, 2, 5)
 --
-sensible :: (Num a, Ord a) => (a,a,a,a) -> (a,a,a,a)
-sensible (minVal, defaultVal, maxVal, step) = (minVal, defaultVal', maxVal', step')
+sensible :: (Num a, Ord a) => (a,a,a) -> (a,a,a)
+sensible (minVal, defaultVal, maxVal) = (minVal, defaultVal', maxVal')
   where
     maxVal'     = minVal `max` maxVal
     defaultVal' = (minVal `max` defaultVal) `min` maxVal'
-    step'       = ((maxVal' - minVal) `min` step) `max` 0
+
 
 --
 -- [mesh], produces an [n] by [n] "degenerate triangle strip" that defines a mesh of
@@ -301,35 +292,28 @@ mesh n side =
 
 ---------------------------------
 
---
--- The "sort" and "ui-type" attributes are to be used by a Javascript
--- program to correctly render UIs and pull the right type of values
--- out of those UIs.
---
---uiElemToJson :: String -> UIElem a -> JsonValue
---uiElemToJson uniformName e = addNameEntry $ case e of
---    UISliderF title lower defaultVal upper ->
---      [ ("sort",      JVString "float_slider")
---      , ("title",     JVString title)
---      , ("min",       JVNumber lower)
---      , ("value",     JVNumber defaultVal)
---      , FIXME: optional step goes here
---      , ("max",       JVNumber upper) ]
---    UISliderI title lower defaultVal upper ->
---      [ ("sort",      JVString "int_slider")
---      , ("title",     JVString title)
---      , ("min",       JVNumber (fromIntegral lower))
---      , ("value",     JVNumber (fromIntegral defaultVal))
---      , FIXME: optional step goes here
---      , ("max",       JVNumber (fromIntegral upper)) ]
---    UITime ->
---      [ ("sort",      JVString "time") ]
---  where
---    addNameEntry = JVObject .JsonObject . (("name", JVString uniformName):)
+instance ToJSON (UIElemWithUniform a) where
+  toJSON (UIElemWithUniform uniformName uiElem) = case uiElem of
+    UISliderF title min value max mbTicks ->
+      object ([ "sort" .= ("float_slider" :: String), "glslUniform" .= uniformName,
+                "title" .= title, "min" .= min,
+                "value" .= value, "max" .= max ] ++ maybe [] (\t -> ["ticks" .= t]) mbTicks)
+    UISliderI title min value max ->
+      object [ "sort" .= ("int_slider" :: String), "glslUniform" .= uniformName, "title" .= title,
+               "min" .= min, "value" .= value, "max" .= max ]
+    UITime -> object [ "sort" .= ("time" :: String)]
+
+uiElemToJSONString :: String -> (UIElem a) -> String
+uiElemToJSONString uniformName uiElem =
+  BS.unpack . JSON.encode $ UIElemWithUniform uniformName uiElem
+
+
+
+--------------------------------------------------------
 
 
 testSurf :: T -> T -> SurfD
-testSurf outerRadius innerRadius = torus 0.7 0.3
+testSurf outerRadius innerRadius = torus outerRadius innerRadius
 
 testImage :: Image Color
 testImage = const red
@@ -339,8 +323,8 @@ testGeom o i = shadyGeometry { shadyImage = testImage, shadySurface = testSurf o
 
 testUI :: UI (ShadyGeometry Color)
 testUI = do
-  outerRadius <- uiSliderF "Outer" 0 0.7 1
-  innerRadius <- uiSliderF "Inner" 0 0.3 1
+  outerRadius <- uiSliderF "Outer" 0 0.7 1 Nothing
+  innerRadius <- uiSliderF "Inner" 0 0.3 1 Nothing
   return $ testGeom (pureD outerRadius) (pureD innerRadius)
 
 testEffect :: ShadyEffect Color

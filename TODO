@@ -4,3 +4,7 @@ TODO
   key is down or not. Key gets set "down" when initially pushed
   and set "up" when it's up. You know it's not working because you can't
   hold down two keys at the same time.
+
+
+* Improve Language.C.Inline
+  - Marshalls ByteStrings too.
