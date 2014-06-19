@@ -1,4 +1,4 @@
-#include "MacShadyGLView.h"
+#import "MacShadyGLView.h"
 
 static const NSTimeInterval  kScheduledTimerInSeconds      = 1.0f/60.0f;
 @implementation MacShadyGLView
@@ -12,7 +12,7 @@ NSTimer            *timer;            // timer to update the view content
  * in pixel format. This can be set in Interface Builder but I have opted to enable it
  * programatically.
  */
-- (id)initWithFrame:(NSRect)frame effectIndex:(int)effectIndex
+- (id)initWithFrame:(NSRect)frame effectIndex:(int)effectIndex controls:(NSArray *)controls
 {
   self = [super initWithFrame: frame];
   if (self) {
@@ -32,9 +32,11 @@ NSTimer            *timer;            // timer to update the view content
 
     NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
 
-    self.effectIndex = effectIndex;
     [self setPixelFormat:pf];
     [self setOpenGLContext:context];
+
+    self.effectIndex = effectIndex;
+    self.controls = controls;
   }
 
   return self;
@@ -73,8 +75,7 @@ NSTimer            *timer;            // timer to update the view content
 /*
  * Note on the used of the 'intialised' variable.
  *
- * When initialising an object using a .nib file
- * one can only guarantee that all initialisation has been
+ * When initialising one can only guarantee that all initialisation has been
  * done at the point where 'drawRect' is called for the first time.
  * This forces us to do the rather ugly trick below where we call
  * 'msInit' only the first time through.
@@ -105,6 +106,9 @@ NSTimer            *timer;            // timer to update the view content
 - (void)initialise{
     [self initUpdateTimer];
     msInit(self.effectIndex);
+    for (id <ShadyControl> control in self.controls) {
+      [control setGLSLUniform];
+    }
 }
 
 - (void)drawRect:(NSRect)dirtyRect

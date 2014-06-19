@@ -16,3 +16,5 @@ TODO
 - Fix up formatting of files
 
 - Refactor the CompileEffect mess. Especially the whole VU mess.
+
+- Add an interface to ShadyFloatSlider.h

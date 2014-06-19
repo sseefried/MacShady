@@ -7,9 +7,10 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "ShadyControl.h"
 #import "MacShadyHooks.h"
 
-@interface ShadyFloatSlider : NSView
+@interface ShadyFloatSlider : NSView <ShadyControl>
 
 @property NSSlider    *slider;
 @property NSTextField *titleLabel;
@@ -24,4 +25,7 @@
 - (id)initWithUniformIndex:(int)uniformIndex effectIndex:(int)effectIndex title:(NSString *)title
                   minValue:(double)minValue value:(double)value maxValue:(double)maxValue
                      ticks:(NSInteger)ticks;
+
+- (void)setGLSLUniform;
+
 @end

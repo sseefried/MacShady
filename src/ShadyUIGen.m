@@ -115,17 +115,13 @@
 
   NSView *view = [window contentView];
 
-  // Must initialise and add OpenGL view first so that GLSL program is compiled and linked
-  // before uniform values are set by UI elements.
-
-  MacShadyGLView *openGLView = [[MacShadyGLView alloc] initWithFrame: frame effectIndex: effectIndex];
-  openGLView.translatesAutoresizingMaskIntoConstraints = NO;
-  [view addSubview:openGLView];
 
 
 
   NSControl *lastControl = nil;
   NSArray   *constraints;
+
+  NSMutableArray *controls = [NSMutableArray array];
 
   NSEnumerator *enumerator = [uiSpec reverseObjectEnumerator];
   for (NSDictionary *uiElement in enumerator) {
@@ -162,7 +158,14 @@
 
     }
     lastControl = control;
+    [controls addObject: control];
   }
+
+  MacShadyGLView *openGLView =
+    [[MacShadyGLView alloc] initWithFrame: frame
+                              effectIndex: effectIndex controls:controls];
+  openGLView.translatesAutoresizingMaskIntoConstraints = NO;
+  [view addSubview:openGLView];
 
 
   NSDictionary *dict = @{ @"glView" : openGLView, @"last": lastControl};

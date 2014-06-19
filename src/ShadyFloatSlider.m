@@ -53,7 +53,7 @@
       [self.slider setMinValue:minValue];
       [self.slider setMaxValue:maxValue];
       [self.slider setTarget:self];
-      [self.slider setAction:@selector(handle)];
+      [self.slider setAction:@selector(setGLSLUniform)];
       [self.slider setTranslatesAutoresizingMaskIntoConstraints:NO];
       self.slider.doubleValue = value;
 
@@ -77,13 +77,10 @@
 - (void)drawRect:(NSRect)dirtyRect
 {
     [super drawRect:dirtyRect];
-    // Drawing code here.
 }
 
-- (void)handle
+- (void)setGLSLUniform
 {
-  NSLog(@"Setting float slider value of %f", self.slider.doubleValue);
-  // FIXME: It's not always going to be zero
   msSetFloatUniform(self.effectIndex, self.uniformIndex, self.slider.floatValue);
   self.valueLabel.stringValue = [NSString stringWithFormat:@"%.2f", self.slider.doubleValue];
 }
