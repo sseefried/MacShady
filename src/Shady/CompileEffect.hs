@@ -33,11 +33,11 @@ import Shady.Language.Exp   (R2, R3, R3E, pureE, patE, patT, ExpT(..), E(..),
                              FromE(..), HasType, pat)
 import Shady.Misc           (EyePos)
 import TypeUnary.Vec        (vec3, Vec1)
-import Data.NameM
 import Data.Aeson as JSON
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.Maybe
 import Data.List (intersperse)
+import Control.Monad.State.Lazy
 
 
 -- FIXME: Remove
@@ -80,7 +80,7 @@ data UIElem a where
             -> UIElem (E (Vec1 Int))
   UITime    :: UIElem (E (Vec1 Float))
 
-data UIElemWithUniform a = UIElemWithUniform String (UIElem a)
+data UIElemWithUniformIndex a = UIElemWithUniformIndex Int (UIElem a)
 
 data UI a where
   UIElem  :: (FromE a, HasType (ExpT a)) => UIElem a -> UI a
@@ -97,15 +97,16 @@ uiElemToUntyped e = case e of
   (UISliderI s l d u)              -> UUISliderI s l d u
   UITime                           -> UUITime
 
-elemName :: forall a.String -> UIElem a -> NameM String
+elemName :: forall a.String -> UIElem a -> State Int (Int, String)
 elemName uniquePrefix e = do
-  nm <- genName
+  i <- get
+  modify (+1)
   let suffix :: String
       suffix = case e of
                  UISliderF _ _ _ _ _ -> "float_slider"
                  UISliderI _ _ _ _   -> "int_slider"
                  UITime              -> "time"
-  return (printf "%s_%s_%s" uniquePrefix nm suffix)
+  return (i, printf "%s_%d_%s" uniquePrefix i suffix)
 
 -- Untyped version of Variables in Shady.Language.Exp
 data VU = VU { uVarName :: String, uVarType :: String }
@@ -113,25 +114,25 @@ data VU = VU { uVarName :: String, uVarType :: String }
 instance Show VU where
   show vu = printf "uniform %s %s" (uVarType vu) (uVarName vu)
 
-runUINameM :: String -> UI a -> NameM (a, [(VU,String)])
-runUINameM uniquePrefix ui = case ui of
+runUIState :: String -> UI a -> State Int (a, [(VU,String)])
+runUIState uniquePrefix ui = case ui of
   UIReturn a          -> return (a, [])
   UIBind (UIElem e) f -> do
-    name <- elemName uniquePrefix e
+    (i,name) <- elemName uniquePrefix e
     let vu = VU name (show (patT p))
         p = pat $ name
     (a, varsAndElems) <- go . f $ (fromE . patE $ p)
-    return $ (a, (vu, uiElemToJSONString name e):varsAndElems)
+    return $ (a, (vu, uiElemToJSONString i e):varsAndElems)
   UIBind nextUI f -> do
     (a, varsAndElems)  <- go nextUI
     (a', varsAndElems') <- go (f a)
     return (a', varsAndElems ++ varsAndElems')
   where
-    go :: UI a -> NameM (a, [(VU, String)])
-    go = runUINameM uniquePrefix
+    go :: UI a -> State Int (a, [(VU, String)])
+    go = runUIState uniquePrefix
 
 runUI :: String -> UI a -> (a, [(VU, String)])
-runUI uniquePrefix = runNameM . runUINameM uniquePrefix
+runUI uniquePrefix = fst . flip runState 0 . runUIState uniquePrefix
 
 instance Monad UI where
   return = UIReturn
@@ -292,20 +293,20 @@ mesh n side =
 
 ---------------------------------
 
-instance ToJSON (UIElemWithUniform a) where
-  toJSON (UIElemWithUniform uniformName uiElem) = case uiElem of
+instance ToJSON (UIElemWithUniformIndex a) where
+  toJSON (UIElemWithUniformIndex uniformIndex uiElem) = case uiElem of
     UISliderF title min value max mbTicks ->
-      object ([ "sort" .= ("float_slider" :: String), "glslUniform" .= uniformName,
+      object ([ "sort" .= ("float_slider" :: String), "glslUniformIndex" .= uniformIndex,
                 "title" .= title, "min" .= min,
                 "value" .= value, "max" .= max ] ++ maybe [] (\t -> ["ticks" .= t]) mbTicks)
     UISliderI title min value max ->
-      object [ "sort" .= ("int_slider" :: String), "glslUniform" .= uniformName, "title" .= title,
+      object [ "sort" .= ("int_slider" :: String), "glslUniformIndex" .= uniformIndex, "title" .= title,
                "min" .= min, "value" .= value, "max" .= max ]
     UITime -> object [ "sort" .= ("time" :: String)]
 
-uiElemToJSONString :: String -> (UIElem a) -> String
-uiElemToJSONString uniformName uiElem =
-  BS.unpack . JSON.encode $ UIElemWithUniform uniformName uiElem
+uiElemToJSONString :: Int -> UIElem a -> String
+uiElemToJSONString uniformIndex uiElem =
+  BS.unpack . JSON.encode $ UIElemWithUniformIndex uniformIndex uiElem
 
 
 
@@ -313,7 +314,7 @@ uiElemToJSONString uniformName uiElem =
 
 
 testSurf :: T -> T -> SurfD
-testSurf outerRadius innerRadius = torus outerRadius innerRadius
+testSurf outerRadius innerRadius = torus 0.7 0.3 -- outerRadius 0.3 -- innerRadius
 
 testImage :: Image Color
 testImage = const red

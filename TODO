@@ -5,6 +5,14 @@ TODO
   and set "up" when it's up. You know it's not working because you can't
   hold down two keys at the same time.
 
+- Finish ShadyUIGen
+  - cases for int sliders and time
+
+- Writer ShadyIntSlider.m
 
 * Improve Language.C.Inline
   - Marshalls ByteStrings too.
+
+- Fix up formatting of files
+
+- Refactor the CompileEffect mess. Especially the whole VU mess.

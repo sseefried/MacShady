@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "MacShadyHooks.h"
 
 @interface ShadyFloatSlider : NSView
 
@@ -15,9 +16,12 @@
 @property NSTextField *minLabel;
 @property NSTextField *maxLabel;
 @property NSTextField *valueLabel;
-@property NSString    *uniform;
+@property int         uniformIndex;
+@property int         effectIndex;
 
-- (id)initWithUniform:(NSString*)uniform title:(NSString *)title minValue:(double)minValue value:(double)value maxValue:(double)maxValue;
-- (id)initWithUniform:(NSString*)uniform title:(NSString *)title minValue:(double)minValue value:(double)value maxValue:(double)maxValue ticks:(NSInteger)ticks;
-
+- (id)initWithUniformIndex:(int)uniformIndex effectIndex:(int)effectIndex title:(NSString *)title
+                  minValue:(double)minValue value:(double)value maxValue:(double)maxValue;
+- (id)initWithUniformIndex:(int)uniformIndex effectIndex:(int)effectIndex title:(NSString *)title
+                  minValue:(double)minValue value:(double)value maxValue:(double)maxValue
+                     ticks:(NSInteger)ticks;
 @end

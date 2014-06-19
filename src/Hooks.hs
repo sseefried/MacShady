@@ -46,7 +46,7 @@ foreign export ccall msRightMouseDragged :: MSEffectIndex -> CFloat  -> CFloat -
 foreign export ccall msKeyDown           :: MSEffectIndex -> CUShort -> CULong -> IO ()
 foreign export ccall msKeyUp             :: MSEffectIndex -> CUShort -> CULong -> IO ()
 foreign export ccall msResize            :: MSEffectIndex -> CInt    -> CInt   -> IO ()
-foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CString -> CFloat -> IO ()
+foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CInt -> CFloat -> IO ()
 
 pointsToArrayBuffer :: [(Float, Float)] -> [GLfloat]
 pointsToArrayBuffer = foldl f []
@@ -54,9 +54,10 @@ pointsToArrayBuffer = foldl f []
     c = fromRational . toRational
     f rest (x,y) = c x : c y : rest
 
-compileAndLinkEffect :: MSEffectIndex -> GLSLEffect -> IO (Program, Map Int UniformLocation)
+compileAndLinkEffect :: MSEffectIndex -> GLSLEffect
+                     -> IO (Program, Map Int UniformLocation)
 compileAndLinkEffect i effect = do
-  let uniformNames = uniformNamesOfGLSLEffect effect
+  let uniforms = uniformNamesOfGLSLEffect effect
 
   vs <- loadShader VertexShader (BS.pack $ vertexShader effect) >>= \case
           Left errs -> nsLog errs >> exitFailure
@@ -69,7 +70,7 @@ compileAndLinkEffect i effect = do
           Left errs -> nsLog errs >> exitFailure
           Right p   -> return p
 
-  uniformLocs <- mapM (get . (uniformLocation p)) uniformNames
+  uniformLocs <- mapM (get . (uniformLocation p)) uniforms
   let uniformMap = foldl insertUniform Map.empty (zip [0..] uniformLocs)
       insertUniform m (i, uniformName) = Map.insert i uniformName m
   currentProgram $= Just p
@@ -78,7 +79,7 @@ compileAndLinkEffect i effect = do
 
 -- called immediately after OpenGL context established
 msInit :: MSEffectIndex -> IO ()
-msInit i = initMSEffectState i $ \shadyEffect -> do
+msInit i = initMSEffectState i $ \glslEffect -> do
   nsLog $ "msInit called"
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
   bindBuffer ArrayBuffer $= Just vbo
@@ -88,7 +89,7 @@ msInit i = initMSEffectState i $ \shadyEffect -> do
     let meshLen = fromIntegral (length meshData) * fromIntegral (sizeOf (undefined :: GLfloat))
     bufferData ArrayBuffer $= (meshLen, ptr, StaticDraw)
 
-  (p, uniformMap) <- compileAndLinkEffect i shadyEffect
+  (p, uniformMap) <- compileAndLinkEffect i glslEffect
 
   zoom <- get (uniformLocation p "zoom")
   pan  <- get (uniformLocation p "pan")
@@ -112,7 +113,7 @@ msInit i = initMSEffectState i $ \shadyEffect -> do
   -- showing. It also important that a non-zero depth size is set in
   -- Cocoa's NSOpenGLView.
   depthFunc $= Just Less
-  return $ initialMSEffectState p zoom pan aRow bRow cRow shadyEffect uniformMap
+  return $ initialMSEffectState p zoom pan aRow bRow cRow glslEffect uniformMap
 
 
 theMesh :: [(Float, Float)]
@@ -208,10 +209,10 @@ msResize _ w h = do
   let s = min w h
   viewport $= (Position ((w - s)`div` 2) ((h - s) `div` 2) , Size s s )
 
-msSetFloatUniform :: MSEffectIndex -> CString -> CFloat -> IO ()
-msSetFloatUniform i uniformNameCString value = withMSEffectState i $ \s -> do
+msSetFloatUniform :: MSEffectIndex -> CInt -> CFloat -> IO ()
+msSetFloatUniform i uniformIndex value = withMSEffectState i $ \s -> do
   let p = mseGLSLProgram s
-  uniformName <- peekCString uniformNameCString
-  name <- get (uniformLocation p uniformName)
-  uniform name $= TexCoord1 (fromRational . toRational $ value :: GLfloat)
+  case Map.lookup (fromIntegral uniformIndex) (mseUniforms s) of
+    Just loc -> uniform loc $= TexCoord1 (fromRational . toRational $ value :: GLfloat)
+    Nothing -> return ()
   return s

@@ -10,29 +10,34 @@
 
 @implementation ShadyFloatSlider
 
-- (id)initWithUniform:(NSString*)uniform title:(NSString *)title minValue:(double)minValue value:(double)value maxValue:(double)maxValue
+- (id)initWithUniformIndex:(int)uniformIndex effectIndex:(int)effectIndex title:(NSString *)title
+                  minValue:(double)minValue value:(double)value maxValue:(double)maxValue
 {
-  return [self initWithUniform:uniform title:title minValue:minValue value:value maxValue:maxValue ticks:0];
+  return [self initWithUniformIndex:uniformIndex effectIndex: effectIndex title:title
+                           minValue:minValue value:value maxValue:maxValue ticks:0];
 }
 
 
 /*
  * 'ticks' is an optional parameter. If it is zero then the slider is continuous.
  */
-- (id)initWithUniform:(NSString*)uniform title:(NSString *)title minValue:(double)minValue value:(double)value maxValue:(double)maxValue ticks:(NSInteger)ticks
+- (id)initWithUniformIndex:(int)uniformIndex effectIndex:(int)effectIndex title:(NSString *)title
+                  minValue:(double)minValue value:(double)value maxValue:(double)maxValue
+                     ticks:(NSInteger)ticks
 {
     self = [super initWithFrame:NSMakeRect(0,0,100,100)];
     if (self) {
-      self.uniform = uniform;
+      self.uniformIndex = uniformIndex;
       self.titleLabel = [[NSTextField alloc] init];
       self.minLabel   = [[NSTextField alloc] init];
       self.maxLabel   = [[NSTextField alloc] init];
       self.valueLabel = [[NSTextField alloc] init];
 
       self.titleLabel.stringValue = title;
-      self.minLabel.stringValue = [NSString stringWithFormat:@"%.2f", minValue];
-      self.maxLabel.stringValue = [NSString stringWithFormat:@"%.2f", maxValue];
+      self.minLabel.stringValue   = [NSString stringWithFormat:@"%.2f", minValue];
+      self.maxLabel.stringValue   = [NSString stringWithFormat:@"%.2f", maxValue];
       self.valueLabel.stringValue = [NSString stringWithFormat:@"%.2f", value];
+      self.effectIndex            = effectIndex;
 
 
       for (NSTextField *tf in @[self.titleLabel, self.minLabel, self.valueLabel, self.maxLabel]) {
@@ -65,7 +70,6 @@
                                                                      metrics:nil
                                                                      views:views];
       [self addConstraints:constraints];
-
     }
     return self;
 }
@@ -78,6 +82,9 @@
 
 - (void)handle
 {
+  NSLog(@"Setting float slider value of %f", self.slider.doubleValue);
+  // FIXME: It's not always going to be zero
+  msSetFloatUniform(self.effectIndex, self.uniformIndex, self.slider.floatValue);
   self.valueLabel.stringValue = [NSString stringWithFormat:@"%.2f", self.slider.doubleValue];
 }
 

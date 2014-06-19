@@ -36,6 +36,7 @@ NSTimer            *timer;            // timer to update the view content
     [self setPixelFormat:pf];
     [self setOpenGLContext:context];
   }
+
   return self;
 }
 

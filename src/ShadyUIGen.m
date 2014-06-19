@@ -68,12 +68,12 @@
   return uiSpec;
 }
 
-+ (NSControl *)controlFromUIElem:(NSDictionary *)uiElement
++ (NSControl *)controlFromUIElem:(NSDictionary *)uiElement effectIndex:(int)effectIndex
 {
   NSString *sort = [uiElement valueForKey:@"sort"];
   NSControl *control = nil;
   if ([sort isEqualToString:@"float_slider"]) {
-    NSString *uniform =  [uiElement valueForKey:@"glslUniform"];
+    NSNumber *uniformIndex =  [uiElement valueForKey:@"glslUniformIndex"];
     NSNumber *minValue = [uiElement valueForKey:@"min"];
     NSNumber *value =    [uiElement valueForKey:@"value"];
     NSNumber *maxValue = [uiElement valueForKey:@"max"];
@@ -81,13 +81,15 @@
     NSString *title    = [uiElement valueForKey:@"title"];
 
     if (ticks) {
-      control = (NSControl *)[[ShadyFloatSlider alloc] initWithUniform:uniform title:title
-                                                              minValue:[minValue doubleValue] value:[value doubleValue]
-                                                              maxValue:[maxValue doubleValue] ticks:[ticks doubleValue]];
+      control = (NSControl *)[[ShadyFloatSlider alloc]
+                    initWithUniformIndex:[uniformIndex intValue] effectIndex: effectIndex title:title
+                               minValue:[minValue doubleValue] value:[value doubleValue]
+                               maxValue:[maxValue doubleValue] ticks:[ticks doubleValue]];
     } else {
-      control = (NSControl *)[[ShadyFloatSlider alloc] initWithUniform:uniform title:title
-                                                              minValue:[minValue doubleValue] value:[value doubleValue]
-                                                              maxValue:[maxValue doubleValue]];
+      control = (NSControl *)[[ShadyFloatSlider alloc] initWithUniformIndex:[uniformIndex intValue]
+                   effectIndex: effectIndex title:title
+                      minValue:[minValue doubleValue] value:[value doubleValue]
+                      maxValue:[maxValue doubleValue]];
     }
   }
   return control;
@@ -113,6 +115,13 @@
 
   NSView *view = [window contentView];
 
+  // Must initialise and add OpenGL view first so that GLSL program is compiled and linked
+  // before uniform values are set by UI elements.
+
+  MacShadyGLView *openGLView = [[MacShadyGLView alloc] initWithFrame: frame effectIndex: effectIndex];
+  openGLView.translatesAutoresizingMaskIntoConstraints = NO;
+  [view addSubview:openGLView];
+
 
 
   NSControl *lastControl = nil;
@@ -120,7 +129,7 @@
 
   NSEnumerator *enumerator = [uiSpec reverseObjectEnumerator];
   for (NSDictionary *uiElement in enumerator) {
-    NSControl *control = [ShadyUIGen controlFromUIElem: uiElement];
+    NSControl *control = [ShadyUIGen controlFromUIElem: uiElement effectIndex: effectIndex];
     control.translatesAutoresizingMaskIntoConstraints = NO;
 
     [view addSubview: control];
@@ -156,11 +165,6 @@
   }
 
 
-  MacShadyGLView *openGLView = [[MacShadyGLView alloc] initWithFrame: frame effectIndex: effectIndex];
-  openGLView.translatesAutoresizingMaskIntoConstraints = NO;
-  [view addSubview:openGLView];
-
-
   NSDictionary *dict = @{ @"glView" : openGLView, @"last": lastControl};
 
   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[glView]-|"
@@ -174,7 +178,6 @@
                                                  metrics:nil
                                                  views:dict];
   [view addConstraints:constraints];
-
   return window;
 }
 
