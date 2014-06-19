@@ -18,3 +18,5 @@ TODO
 - Refactor the CompileEffect mess. Especially the whole VU mess.
 
 - Add an interface to ShadyFloatSlider.h
+
+- ensure focus is on GLView so that keys immediately work

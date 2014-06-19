@@ -316,6 +316,8 @@ uiElemToJSONString uniformIndex uiElem =
 testSurf :: T -> T -> SurfD
 testSurf outerRadius innerRadius = torus outerRadius innerRadius
 
+
+
 testImage :: Image Color
 testImage = const red
 

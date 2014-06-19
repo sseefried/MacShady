@@ -20,6 +20,8 @@ import qualified Data.Matrix as M
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
+import           Data.Set (Set)
+import qualified Data.Set as S
 
 -- friends
 import NSLog
@@ -33,7 +35,7 @@ mESH_SIZE = 200
 
 
 vELOCITY_DRAG = 0.02 -- value between 0 and 1. 0 is no drag. 1 is complete drag.
-vELOCITY_ACCEL = 0.01
+vELOCITY_ACCEL = 0.005
 
 foreign export ccall msInit              :: MSEffectIndex -> IO ()
 foreign export ccall msDraw              :: MSEffectIndex -> IO ()
@@ -81,6 +83,7 @@ compileAndLinkEffect i effect = do
 msInit :: MSEffectIndex -> IO ()
 msInit i = initMSEffectState i $ \glslEffect -> do
   nsLog $ "msInit called"
+  nsLog $ vertexShader glslEffect
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
   bindBuffer ArrayBuffer $= Just vbo
 
@@ -123,31 +126,81 @@ lenMesh :: CInt
 lenMesh = fromIntegral . length $ theMesh
 
 
+  --let a = vELOCITY_ACCEL
+  --    addV  dx dy = return $ let (vx,vy) = mseRotateVelocity s
+  --                        in s { mseRotateVelocity = (vx + dx, vy + dy)}
+  --    addVx dx = addV dx 0
+  --    addVy dy = addV 0 dy
+  --case keyCode of
+  --  0  {- A -} -> addVx (-a)
+  --  1  {- S -} -> addVy a
+  --  2  {- D -} -> addVx a
+  --  13 {- W -} -> addVy (-a)
+  --  _ -> return s
+
+-- foo :: (KeyCode, Float) -> State -> State
+
+
+
+
 msDraw :: MSEffectIndex -> IO ()
 msDraw i = withMSEffectState i $ \s -> do
-      let rotationMatrix' = applyRotation s
-      setRotationMatrix rotationMatrix'
-      clear [ColorBuffer, DepthBuffer]
-      drawArrays TriangleStrip 0 lenMesh
-      flush
-      return $ s { mseRotateVelocity = applyDrag s, mseRotationMatrix = rotationMatrix'}
-      where
-        applyDrag s =
-            let (vx,vy)    = mseRotateVelocity s
-                d          = 1 - vELOCITY_DRAG
-            in  (vx*d, vy*d)
-        -- TODO: Make rotation apply relative to camera, not object's original position.
-        applyRotation s =
-            let msrm            = mseRotationMatrix s
-                m               = msrmVal msrm
-                xAxis           = xAxisOf m
-                yAxis           = yAxisOf m
-                (vx, vy)        = mseRotateVelocity s
-            in msrm { msrmVal =  rotateAboutAxis vy xAxis . rotateAboutAxis vx yAxis $ m }
+  let s' = thread [ whenKeyApplyFun (0  {- A -}, S.empty, addVx (-a))
+                  , whenKeyApplyFun (1  {- S -}, S.empty, addVy   a)
+                  , whenKeyApplyFun (2  {- D -}, S.empty, addVx   a)
+                  , whenKeyApplyFun (13 {- W -}, S.empty, addVy (-a))
+                  , whenKeyApplyFun (24 {- + -}, S.empty, zoom 0.95)
+                  , whenKeyApplyFun (27 {- + -}, S.empty, zoom 1.05)
+                  , applyDrag
+                  , applyRotation] s
 
-setRotationMatrix :: MSRotationMatrix -> IO ()
-setRotationMatrix (MSRotationMatrix m (aRow, bRow, cRow)) = setUniforms m aRow bRow cRow
+  setZoom s'
+  setRotationMatrix s'
+  clear [ColorBuffer, DepthBuffer]
+  drawArrays TriangleStrip 0 lenMesh
+  flush
+  return s'
   where
+    thread :: [a -> a] -> a -> a
+    thread [] a = a
+    thread (f:fs) a = thread fs (f a)
+
+    a = vELOCITY_ACCEL
+    addV :: Float -> Float -> MSEffectState -> MSEffectState
+    addV dx dy s = let (vx,vy) = mseRotateVelocity s in s { mseRotateVelocity = (vx + dx, vy + dy) }
+
+    addVx, addVy :: Float -> MSEffectState -> MSEffectState
+    addVx dx = addV dx 0
+    addVy dy = addV 0 dy
+
+    zoom factor = modifyMSZoom (*factor)
+
+    whenKeyApplyFun :: (KeyCode, Set KeyModifier, MSEffectState -> MSEffectState)
+        -> MSEffectState -> MSEffectState
+    whenKeyApplyFun (k, kms, f) s = case Map.lookup k (mseKeyMap s) of
+                                      Just kms' |  kms == kms' -> f s
+                                      _                        -> s
+
+    applyDrag :: MSEffectState -> MSEffectState
+    applyDrag s =
+        let (vx,vy)    = mseRotateVelocity s
+            d          = 1 - vELOCITY_DRAG
+        in  s { mseRotateVelocity = (vx*d, vy*d) }
+    -- TODO: Make rotation apply relative to camera, not object's original position.
+    applyRotation :: MSEffectState -> MSEffectState
+    applyRotation s =
+        let msrm            = mseRotationMatrix s
+            m               = msrmVal msrm
+            xAxis           = xAxisOf m
+            yAxis           = yAxisOf m
+            (vx, vy)        = mseRotateVelocity s
+        in s { mseRotationMatrix =
+                 msrm { msrmVal =  rotateAboutAxis vy xAxis . rotateAboutAxis vx yAxis $ m } }
+
+setRotationMatrix :: MSEffectState -> IO ()
+setRotationMatrix s = setUniforms m aRow bRow cRow
+  where
+    (MSRotationMatrix m (aRow, bRow, cRow)) = mseRotationMatrix s
     elem :: Int -> Int -> M.Matrix Float -> GLfloat
     elem x y rm = fromRational . toRational $  rm M.! (x,y)
     setUniforms :: M.Matrix Float -> UniformLocation -> UniformLocation -> UniformLocation -> IO ()
@@ -155,6 +208,12 @@ setRotationMatrix (MSRotationMatrix m (aRow, bRow, cRow)) = setUniforms m aRow b
       uniform aRow $= Vertex3 (elem 1 1 rm) (elem 1 2 rm) (elem 1 3 rm)
       uniform bRow $= Vertex3 (elem 2 1 rm) (elem 2 2 rm) (elem 2 3 rm)
       uniform cRow $= Vertex3 (elem 3 1 rm) (elem 3 2 rm) (elem 3 3 rm)
+
+setZoom :: MSEffectState -> IO ()
+setZoom s =
+  uniform (mszUniformLoc z) $= TexCoord1 ((fromRational . toRational) (mszVal z) :: GLfloat)
+  where
+    z = mseZoom s
 
 coord :: CFloat -> CFloat -> (Float, Float)
 coord x y = (hf x, hf y)
@@ -183,25 +242,14 @@ msRightMouseDragged _ x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
 
 msKeyDown :: MSEffectIndex -> CUShort -> CULong -> IO ()
 msKeyDown i keyCode modifierFlags = withMSEffectState i $ \s -> do
-  nsLog $ "Key down with code = " ++ show keyCode ++
-            " and modifierFlags = " ++ show modifierFlags
-  let a = vELOCITY_ACCEL
-      addV  dx dy = return $ let (vx,vy) = mseRotateVelocity s
-                          in s { mseRotateVelocity = (vx + dx, vy + dy)}
-      addVx dx = addV dx 0
-      addVy dy = addV 0 dy
-  case keyCode of
-    0  {- A -} -> addVx (-a)
-    1  {- S -} -> addVy a
-    2  {- D -} -> addVx a
-    13 {- W -} -> addVy (-a)
-    _ -> return s
+  let modifiers = modifiersPressed modifierFlags
+  nsLog $ "Keydown: code = " ++ show keyCode ++
+            ", modifiers = " ++ show modifiers
+  return $ s { mseKeyMap = Map.insert (fromIntegral keyCode) modifiers (mseKeyMap s)}
 
 msKeyUp :: MSEffectIndex -> CUShort -> CULong -> IO ()
-msKeyUp _ keyCode modifierFlags =
-  nsLog $ "Key up with code = " ++ show keyCode ++
-          " and modifierFlags = " ++ show modifierFlags
-
+msKeyUp i keyCode modifierFlags = withMSEffectState i $ \s -> do
+  return $ s { mseKeyMap = Map.delete (fromIntegral keyCode) (mseKeyMap s) }
 
 msResize :: MSEffectIndex -> CInt -> CInt -> IO ()
 msResize _ w h = do

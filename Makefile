@@ -37,7 +37,8 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/ShadyFloatSlider.o \
        $(SRC)/ShadyUIGen.o \
        $(SRC)/MacShadyGLView.o \
-       $(SRC)/NSLog.o
+       $(SRC)/NSLog.o \
+       $(SRC)/CocoaKey.o
 
 default: MacShady.app/Contents/MacOS/MacShady
 
@@ -61,7 +62,7 @@ $(SRC)/NSLog_objc.m:       $(SRC)/NSLog.o
 $(SRC)/App_objc.m:         $(SRC)/App.o
 $(SRC)/AppDelegate_objc.m: $(SRC)/AppDelegate.o
 
-$(SRC)/MSState.o: $(SRC)/Shady/CompileEffect.o
+$(SRC)/MSState.o: $(SRC)/Shady/CompileEffect.o $(SRC)/CocoaKey.o
 
 MacShady: $(OBJS)
 	$(HC) -o $@ $^ $(LDFLAGS)

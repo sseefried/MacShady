@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
-module MSState where
+module MSState(
+  module CocoaKey,
+  module MSState
+) where
 
 import           Data.Matrix
 import qualified Graphics.Rendering.OpenGL as O
@@ -8,7 +11,10 @@ import           Data.Map (Map)
 import qualified Data.Map as M
 import           Shady.CompileEffect (GLSLEffect)
 import           System.IO.Unsafe -- dun dun dun
+import           Data.Set (Set)
 
+--friends
+import CocoaKey
 
 --
 -- The interaction between Haskell and Objective-C forces us to initialise the
@@ -33,8 +39,6 @@ data MSRotationMatrix =
 data MSZoom = MSZoom { mszVal :: Float, mszUniformLoc :: O.UniformLocation }
 data MSPan  = MSPan  { mspVal :: (Float, Float), mspUniformLoc :: O.UniformLocation }
 
-
-
 data MSEffect = MSJustGLSLEffect (GLSLEffect) | MSFullEffectState MSEffectState
 
 data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
@@ -43,10 +47,23 @@ data MSEffectState = MSEffectState { mseMouseDownPos    :: (Float, Float)
                                    , mseGLSLProgram     :: O.Program
                                    , mseZoom            :: MSZoom
                                    , msePan             :: MSPan
+                                   , mseKeyMap          :: Map KeyCode (Set KeyModifier)
                                    , mseRotationMatrix  :: MSRotationMatrix
-                                   , mseGLSLEffect     :: GLSLEffect
+                                   , mseGLSLEffect      :: GLSLEffect
                                    , mseUniforms        :: Map Int O.UniformLocation
                                    }
+
+modifyMSZoom :: (Float -> Float) -> MSEffectState -> MSEffectState
+modifyMSZoom f s = let z   = mseZoom s
+                       val = mszVal z
+                   in s { mseZoom = z { mszVal = f val}}
+
+modifyMSPan :: ((Float,Float) -> (Float,Float)) -> MSEffectState -> MSEffectState
+modifyMSPan f s = let pan = msePan s
+                      val = mspVal pan
+                   in s { msePan = pan { mspVal = f val}}
+
+
 
 -- Global state
 data MSState = MSState { msEffectIndex  :: MSEffectIndex
@@ -111,6 +128,7 @@ initialMSEffectState p zoom pan aRow bRow cRow glslEffect uniformLocMap =
                 , mseGLSLProgram    = p
                 , mseZoom           = MSZoom 1 zoom
                 , msePan            = MSPan (0,0) pan
+                , mseKeyMap         = M.empty
                 , mseGLSLEffect     = glslEffect
                 , mseUniforms       = uniformLocMap
                 }
