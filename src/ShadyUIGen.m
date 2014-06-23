@@ -165,6 +165,8 @@
     [[MacShadyGLView alloc] initWithFrame: frame
                               effectIndex: effectIndex controls:controls];
   openGLView.translatesAutoresizingMaskIntoConstraints = NO;
+  // Give the focus to this window
+  [window makeFirstResponder:openGLView];
   [view addSubview:openGLView];
 
 

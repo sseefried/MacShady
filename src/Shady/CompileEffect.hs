@@ -13,7 +13,6 @@ module Shady.CompileEffect(
   compileEffect,                       -- constructs   GLSLEffect
   fragmentShader, vertexShader, uniformNamesOfGLSLEffect, uiSpecOfGLSLEffect,-- deconstructs GLSLEffect
   mesh, -- FIXME: move to another module
-  testEffect -- FIXME: Move
 ) where
 
 
@@ -39,9 +38,9 @@ import Data.Maybe
 import Data.List (intersperse)
 import Control.Monad.State.Lazy
 
-
 -- FIXME: Remove
 import Data.Maclaurin
+
 
 data ShadyEffect c = ShadyEffect {
   shadyGeometryUI  :: UI (ShadyGeometry c),
@@ -308,27 +307,5 @@ uiElemToJSONString :: Int -> UIElem a -> String
 uiElemToJSONString uniformIndex uiElem =
   BS.unpack . JSON.encode $ UIElemWithUniformIndex uniformIndex uiElem
 
-
-
 --------------------------------------------------------
 
-
-testSurf :: T -> T -> SurfD
-testSurf outerRadius innerRadius = torus outerRadius innerRadius
-
-
-
-testImage :: Image Color
-testImage = const red
-
-testGeom :: T -> T -> ShadyGeometry Color
-testGeom o i = shadyGeometry { shadyImage = testImage, shadySurface = testSurf o i }
-
-testUI :: UI (ShadyGeometry Color)
-testUI = do
-  outerRadius <- uiSliderF "Outer" 0 0.7 1 Nothing
-  innerRadius <- uiSliderF "Inner" 0 0.3 1 Nothing
-  return $ testGeom (pureD outerRadius) (pureD innerRadius)
-
-testEffect :: ShadyEffect Color
-testEffect = shadyEffect testUI

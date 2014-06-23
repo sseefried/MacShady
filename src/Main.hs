@@ -8,7 +8,6 @@ import qualified NSLog       as NSLog
 
 -- FIXME: These imports might not be necessary later
 import           MSState
-import           Shady.CompileEffect (testEffect, compileEffect)
 
 main :: IO ()
 main = do

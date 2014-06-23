@@ -15,7 +15,8 @@ import qualified Data.Map as M
 
 -- friends
 import MSState
-import Shady.CompileEffect
+import Shady.CompileEffect -- FIXME: Remove
+import Shady.TestEffect -- FIXME: Remove
 
 objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h"]
 
