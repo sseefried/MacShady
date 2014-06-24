@@ -125,6 +125,7 @@
 
   NSEnumerator *enumerator = [uiSpec reverseObjectEnumerator];
   for (NSDictionary *uiElement in enumerator) {
+
     NSControl *control = [ShadyUIGen controlFromUIElem: uiElement effectIndex: effectIndex];
     control.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -170,19 +171,32 @@
   [view addSubview:openGLView];
 
 
-  NSDictionary *dict = @{ @"glView" : openGLView, @"last": lastControl};
+  NSDictionary *dict;
+  if (lastControl) {
+     dict = @{ @"glView" : openGLView, @"last": lastControl};
+  } else {
+    dict = @{ @"glView" : openGLView };
+  }
 
   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[glView]-|"
-                                                          options: 0
-                                                          metrics:nil
-                                                            views:dict];
+                                                            options: 0
+                                                            metrics:nil
+                                                              views:dict];
   [view addConstraints:constraints];
 
-  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-[last(==20)]"
-                                                 options: 0
-                                                 metrics:nil
-                                                 views:dict];
+  if (lastControl) {
+    constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-[last(==20)]"
+                                                   options: 0
+                                                   metrics:nil
+                                                   views:dict];
+  } else {
+   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-|"
+                                                   options: 0
+                                                   metrics:nil
+                                                   views:dict];
+  }
   [view addConstraints:constraints];
+
   return window;
 }
 

@@ -106,8 +106,10 @@ NSTimer            *timer;            // timer to update the view content
 - (void)initialise{
     [self initUpdateTimer];
     msInit(self.effectIndex);
-    for (id <ShadyControl> control in self.controls) {
-      [control setGLSLUniform];
+    if (self.controls) {
+      for (id <ShadyControl> control in self.controls) {
+        [control setGLSLUniform];
+      }
     }
 }
 
