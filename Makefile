@@ -9,17 +9,13 @@ HCFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
 
 LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -no-user-package-db \
-          -package template-haskell \
-          -package language-c-quote \
-          -package language-c-inline \
-          -package hint \
-          -package OpenGLRaw \
-          -package OpenGL \
           -package vector-space \
-          -package type-unary \
           -package wl-pprint \
+          -package type-unary \
           -package shady-graphics \
           -package matrix \
+          -package OpenGL \
+          -package OpenGLRaw \
           -package aeson \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
@@ -40,6 +36,8 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/MacShadyGLView.o \
        $(SRC)/NSLog.o \
        $(SRC)/CocoaKey.o
+
+HI_FILES=$(patsubst %.o,%.hi,$(OBJS))
 
 default: MacShady.app/Contents/MacOS/MacShady
 
@@ -74,7 +72,7 @@ MacShady.app/Contents/MacOS/MacShady: MacShady
 .PHONY: clean
 
 clean:
-	rm -f $(SRC)/*.o $(SRC)/*.hi $(SRC)/App_objc.[hm]\
+	rm -f $(OBJS) $(HI_FILES) $(SRC)/App_objc.[hm]\
         $(SRC)/AppDelegate_objc.[hm] $(SRC)/*_stub.h $(SRC)/NSLog_objc.[hm] \
         MacShady \
 	      MacShady.app/Contents/MacOS/MacShady
