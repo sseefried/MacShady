@@ -7,4 +7,5 @@ cabal.sandbox.config
 *_stub.h
 MacShady
 MacShady.app/Contents/MacOSX/MacShady
+extra-src-repos/
 .DS_Store
