@@ -7,7 +7,7 @@ import           Data.IORef
 import           Foreign.C.Types
 import           Foreign.C.String
 import           Graphics.Rendering.OpenGL hiding (Color)
-import           Graphics.Rendering.OpenGL.Raw
+-- import           Graphics.Rendering.OpenGL.Raw
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import           Foreign.Ptr (nullPtr, Ptr)
@@ -31,11 +31,12 @@ import MatrixUtil
 
 -- The number of triangles in a row of the mesh.
 -- the total mesh size is approximately the square of this number.
+mESH_SIZE :: Float
 mESH_SIZE = 200
 
-
-vELOCITY_DRAG = 0.02 -- value between 0 and 1. 0 is no drag. 1 is complete drag.
-vELOCITY_ACCEL = 0.005
+vELOCITY_DRAG, vELOCITY_ACCEL :: Float
+vELOCITY_DRAG = 0.03 -- value between 0 and 1. 0 is no drag. 1 is complete drag.
+vELOCITY_ACCEL = 0.002
 
 foreign export ccall msInit              :: MSEffectIndex -> IO ()
 foreign export ccall msDraw              :: MSEffectIndex -> IO ()
@@ -48,7 +49,7 @@ foreign export ccall msRightMouseDragged :: MSEffectIndex -> CFloat  -> CFloat -
 foreign export ccall msKeyDown           :: MSEffectIndex -> CUShort -> CULong -> IO ()
 foreign export ccall msKeyUp             :: MSEffectIndex -> CUShort -> CULong -> IO ()
 foreign export ccall msResize            :: MSEffectIndex -> CInt    -> CInt   -> IO ()
-foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CInt -> CFloat -> IO ()
+foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CInt    -> CFloat -> IO ()
 
 pointsToArrayBuffer :: [(Float, Float)] -> [GLfloat]
 pointsToArrayBuffer = foldl f []
@@ -82,8 +83,8 @@ compileAndLinkEffect i effect = do
 -- called immediately after OpenGL context established
 msInit :: MSEffectIndex -> IO ()
 msInit i = initMSEffectState i $ \glslEffect -> do
-  nsLog $ "msInit called"
-  nsLog $ vertexShader glslEffect
+  nsLog $ "Vertex Shader\n"   ++ vertexShader glslEffect
+  nsLog $ "Fragment Shader\n" ++ fragmentShader glslEffect
   vbo:_ <- genObjectNames 1 -- just generate one BufferObject
   bindBuffer ArrayBuffer $= Just vbo
 
@@ -139,9 +140,6 @@ lenMesh = fromIntegral . length $ theMesh
   --  _ -> return s
 
 -- foo :: (KeyCode, Float) -> State -> State
-
-
-
 
 msDraw :: MSEffectIndex -> IO ()
 msDraw i = withMSEffectState i $ \s -> do
