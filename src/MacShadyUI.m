@@ -10,9 +10,9 @@
   if ([sort isEqualToString:@"float_slider"]) {
     NSNumber *uniformIndex =  [uiElement valueForKey:@"glslUniformIndex"];
     NSNumber *minValue = [uiElement valueForKey:@"min"];
-    NSNumber *value =    [uiElement valueForKey:@"value"];
+    NSNumber *value    = [uiElement valueForKey:@"value"];
     NSNumber *maxValue = [uiElement valueForKey:@"max"];
-    NSNumber *ticks     = [uiElement valueForKey:@"ticks"];
+    NSNumber *ticks    = [uiElement valueForKey:@"ticks"];
     NSString *title    = [uiElement valueForKey:@"title"];
 
     if (ticks) {
@@ -46,7 +46,7 @@
   if (self) {
     self.effectIndex = effectIndex;
     self.filePath = @"dummy";
-
+    self.controls = [NSMutableArray array];
 
     NSRect bounds = [[NSScreen mainScreen] frame];
 
@@ -58,7 +58,7 @@
     NSControl *lastControl = nil;
     NSArray   *constraints;
 
-    NSMutableArray *controls = [NSMutableArray array];
+
 
     NSEnumerator *enumerator = [uiSpec reverseObjectEnumerator];
     for (NSDictionary *uiElement in enumerator) {
@@ -96,15 +96,16 @@
 
       }
       lastControl = control;
-      [controls addObject: control];
+      [self.controls addObject: control];
     }
 
     MacShadyGLView *openGLView =
       [[MacShadyGLView alloc] initWithFrame: frame
-                                effectIndex: effectIndex controls:controls];
+                                effectIndex: effectIndex controls:self.controls];
     openGLView.translatesAutoresizingMaskIntoConstraints = NO;
     // Give the focus to this window
-    [self makeFirstResponder:openGLView];
+//    [self makeFirstResponder:openGLView];
+    [self makeFirstResponder:self];
     [view addSubview:openGLView];
 
 
@@ -137,5 +138,13 @@
 
   return self;
 }
+
+- (void)keyDown:(NSEvent *)theEvent
+{
+  for (NSControl *control in self.controls) {
+    [control removeFromSuperview];
+  }
+}
+
 
 @end

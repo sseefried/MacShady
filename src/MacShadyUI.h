@@ -11,6 +11,8 @@
 @property NSString *filePath;
 @property int       effectIndex;
 
+@property NSMutableArray *controls; // FIXME: Remove if not required
+
 - (id) initWithUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex;
 
 @end
