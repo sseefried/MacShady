@@ -62,6 +62,9 @@ torusUI = do
 
 flowerUI :: UI (ShadyGeometry Color)
 flowerUI = do
+  r       <- uiSliderF "Red" 0 0.5 1 Nothing
+  g       <- uiSliderF "Green" 0 0.5 1 Nothing
+  b       <- uiSliderF "Blue" 0 0.5 1 Nothing
   inner   <- uiSliderF "Inner" 0 0.3 1 Nothing
   outer   <- uiSliderF "Outer" 0 0.7 1 Nothing
   periods <- uiSliderF "Periods" 2 3 10 (Just 8)
@@ -70,7 +73,7 @@ flowerUI = do
       variableEggcrate = (h*) . eggcrateH . uscale2 (pureD periods)
       variableTorus = torus (pureD outer) (pureD inner)
       flower = displace variableTorus variableEggcrate
-  return $ testGeom { shadySurface = flower }
+  return $ testGeom { shadyImage = const (rgba r g b 1), shadySurface = flower }
 
 
 

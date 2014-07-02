@@ -10,13 +10,13 @@
 #import <Cocoa/Cocoa.h>
 
 #import "HsFFI.h"
-#import "ShadyFloatSlider.h"
-#import "MacShadyGLView.h"
+#import "MacShadyUI.h"
+
 
 
 @interface ShadyUIGen : NSObject
 
-+ (NSWindow *)uiFromSpec:(NSString *)uiSpecString
++ (MacShadyUI *)uiFromSpec:(NSString *)uiSpecString
                 effectIndex:(int)effectIndex error:(NSError **)error;
 
 @end

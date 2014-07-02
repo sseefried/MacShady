@@ -13,7 +13,9 @@ TOP_LEVEL_PACKAGES="vector-space-0.8.7 \
           OpenGL-2.9.1.0 \
           OpenGLRaw-1.4.0.0 \
           aeson-0.7.0.6 \
+          plugins-1.5.4.0 \
           language-c-inline-0.6.0.0"
+
 
 
 
@@ -62,6 +64,7 @@ PACKAGES="Boolean-0.2.1 \
    vector-0.10.11.0 \
    vector-space-0.8.7 \
    void-0.6.1 \
+   plugins-1.5.4.0 \
    wl-pprint-1.1"
 
 $SB init

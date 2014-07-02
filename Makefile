@@ -17,6 +17,7 @@ LDFLAGS = -package-db ./.cabal-sandbox/x86_64-osx-ghc-$(VER)-packages.conf.d \
           -package OpenGL \
           -package OpenGLRaw \
           -package aeson \
+          -package plugins \
           -framework Cocoa -framework OpenGL -optl-ObjC -threaded
 
 OBJS = $(SRC)/Main.o \
@@ -33,9 +34,11 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/AppDelegate_objc.o \
        $(SRC)/ShadyFloatSlider.o \
        $(SRC)/ShadyUIGen.o \
+       $(SRC)/MacShadyUI.o \
        $(SRC)/MacShadyGLView.o \
        $(SRC)/NSLog.o \
-       $(SRC)/CocoaKey.o
+       $(SRC)/CocoaKey.o \
+       $(SRC)/Compile.o
 
 HI_FILES=$(patsubst %.o,%.hi,$(OBJS))
 
@@ -44,9 +47,14 @@ default: MacShady.app/Contents/MacOS/MacShady
 %.o: %.hs
 	$(HC) -c $< $(HCFLAGS)
 
-$(SRC)/MacShadyGLView.o: $(SRC)/MacShadyGLView.h $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
+
+$(SRC)/Compile.o: $(SRC)/Shady/CompileEffect.o
+
+$(SRC)/MacShadyGLView.o: $(SRC)/MacShadyGLView.h     $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
 $(SRC)/ShadyFloatSlider.o: $(SRC)/ShadyFloatSlider.h $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
-$(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h $(SRC)/MacShadyGLView.o
+
+$(SRC)/MacShadyUI.o: $(SRC)/MacShadyUI.h  $(SRC)/MacShadyGLView.o $(SRC)/ShadyFloatSlider.o
+$(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h  $(SRC)/MacShadyUI.o
 
 $(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/ShadyUIGen.o $(SRC)/Shady/TestEffect.o
 

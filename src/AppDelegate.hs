@@ -18,13 +18,15 @@ import MSState
 import Shady.CompileEffect -- FIXME: Remove
 import Shady.TestEffect -- FIXME: Remove
 
-objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h"]
+objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h", "MacShadyUI.h"]
 
 objc_interface [cunit|
 
 @interface AppDelegate : NSResponder <NSApplicationDelegate>
 
-@property typename NSWindow *window;
+@property typename NSMutableDictionary *effects;
+
+- (typename IBAction)trackFile:(id)sender;
 
 @end
 |]
@@ -46,10 +48,28 @@ objc_implementation [Typed 'jsonForEffect ] [cunit|
 - (void)applicationDidFinishLaunching:(typename NSNotification *)aNotification
 {
   NSLog(@"Application did finish launching!");
+  self.effects = [[NSMutableDictionary alloc] init];
   typename NSError *e = nil;
-  NSLog(@"%@", jsonForEffect());
-  self.window = [ShadyUIGen uiFromSpec: jsonForEffect() effectIndex: 0 error:&e];
+  typename MacShadyUI *shadyUI = [ShadyUIGen uiFromSpec: jsonForEffect() effectIndex: 0 error:&e];
+  [self.effects setValue:shadyUI forKey:@"effect1" ];
 }
+
+- (typename IBAction)trackFile:(id)sender {
+  typename NSOpenPanel *panel = [NSOpenPanel openPanel];
+  [panel beginWithCompletionHandler:^(typename NSInteger result) {
+    if (result == NSFileHandlingPanelOKButton) {
+
+      // grab a reference to what has been selected
+      typename NSURL *document = [[panel URLs]objectAtIndex:0];
+
+      // write our file name to a label
+      typename NSString *url = [NSString stringWithFormat:@"%@", document];
+
+    }
+  }];
+}
+
+
 
 @end
 
