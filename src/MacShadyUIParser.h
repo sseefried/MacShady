@@ -10,13 +10,11 @@
 #import <Cocoa/Cocoa.h>
 
 #import "HsFFI.h"
-#import "MacShadyUI.h"
 
 
 
-@interface ShadyUIGen : NSObject
+@interface MacShadyUIParser : NSObject
 
-+ (MacShadyUI *)uiFromSpec:(NSString *)uiSpecString
-                effectIndex:(int)effectIndex error:(NSError **)error;
++ (NSArray *)parseUISpec:(NSString *)uiSpecString error:(NSError **)error;
 
 @end

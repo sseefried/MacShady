@@ -2,6 +2,7 @@
 #import "HsFFI.h"
 
 // friends
+#import "MacShadyUIParser.h"
 #import "MacShadyGLView.h"
 #import "ShadyFloatSlider.h"
 
@@ -11,6 +12,6 @@
 @property NSString *filePath;
 @property int       effectIndex;
 
-- (id) initWithUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex;
+- (id) initWithEffectFilePath:(NSString *)filePath effectIndex:(int)effectIndex;
 
 @end

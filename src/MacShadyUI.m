@@ -30,8 +30,13 @@
   return control;
 }
 
-- (id) initWithUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex {
+- (id) initWithEffectFilePath:(NSString *)filePath effectIndex:(int)effectIndex {
   // Create a new dynamic meshCoords with a blue background
+
+  // FIXME: filePath is really JSON at this point
+
+  NSError *error;
+  NSArray *uiSpec = [MacShadyUIParser parseUISpec:filePath error:&error];
 
   CGFloat width = 800, height = 600;
   NSRect frame = NSMakeRect(0, 0, width, height);

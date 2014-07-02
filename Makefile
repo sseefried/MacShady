@@ -33,7 +33,7 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/AppDelegate.o \
        $(SRC)/AppDelegate_objc.o \
        $(SRC)/ShadyFloatSlider.o \
-       $(SRC)/ShadyUIGen.o \
+       $(SRC)/MacShadyUIParser.o \
        $(SRC)/MacShadyUI.o \
        $(SRC)/MacShadyGLView.o \
        $(SRC)/NSLog.o \
@@ -53,10 +53,11 @@ $(SRC)/Compile.o: $(SRC)/Shady/CompileEffect.o
 $(SRC)/MacShadyGLView.o: $(SRC)/MacShadyGLView.h     $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
 $(SRC)/ShadyFloatSlider.o: $(SRC)/ShadyFloatSlider.h $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
 
-$(SRC)/MacShadyUI.o: $(SRC)/MacShadyUI.h  $(SRC)/MacShadyGLView.o $(SRC)/ShadyFloatSlider.o
-$(SRC)/ShadyUIGen.o: $(SRC)/ShadyUIGen.h  $(SRC)/MacShadyUI.o
+$(SRC)/MacShadyUI.o: $(SRC)/MacShadyUI.h  $(SRC)/MacShadyGLView.o $(SRC)/ShadyFloatSlider.o \
+	                   $(SRC)/MacShadyUIParser.o
+$(SRC)/MacShadyUIParser.o: $(SRC)/MacShadyUIParser.h
 
-$(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/ShadyUIGen.o $(SRC)/Shady/TestEffect.o
+$(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/MacShadyUIParser.o $(SRC)/Shady/TestEffect.o
 
 $(SRC)/Main.o: $(SRC)/Shady/CompileEffect.o
 

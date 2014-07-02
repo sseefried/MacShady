@@ -1,27 +1,24 @@
 //
-//  ShadyUIGen.m
-//  WindowUITest
-//
 //  Created by Sean Seefried on 11/06/2014.
 //  Copyright (c) 2014 SeefriedSoftware. All rights reserved.
 //
 
-#import "ShadyUIGen.h"
+#import "MacShadyUIParser.h"
 
-@implementation ShadyUIGen
+@implementation MacShadyUIParser
 
-+ (NSWindow *)uiFromSpec:(NSString *)uiSpecString effectIndex:(int)effectIndex error:(NSError **)error
++ (NSArray *)parseUISpec:(NSString *)uiSpecString error:(NSError **)error
 {
-  NSArray *uiSpec = [ShadyUIGen parseJSONSpec:uiSpecString error:error];
+  NSArray *uiSpec = [MacShadyUIParser parseJSONSpec:uiSpecString error:error];
   if (!*error) {
-    return [ShadyUIGen windowFromUISpec:uiSpec effectIndex: effectIndex];
+    return uiSpec;
   }
   return nil;
 }
 
 + (NSArray *)parseJSONSpec:(NSString *)uiSpecString error:(NSError **)error
 {
-  NSString *errorDomain = @"ShadyUIGenError";
+  NSString *errorDomain = @"MacShadyUIParserError";
   NSData *data = [NSData dataWithBytes:[uiSpecString cStringUsingEncoding:NSASCIIStringEncoding]
                                 length: uiSpecString.length];
   NSError *jsonError = nil;
@@ -68,11 +65,5 @@
   return uiSpec;
 }
 
-
-
-+ (MacShadyUI *)windowFromUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex
-{
-  return [[MacShadyUI alloc] initWithUISpec:(NSArray *)uiSpec effectIndex:(int)effectIndex];
-}
 
 @end

@@ -18,7 +18,7 @@ import MSState
 import Shady.CompileEffect -- FIXME: Remove
 import Shady.TestEffect -- FIXME: Remove
 
-objc_import ["<Cocoa/Cocoa.h>", "ShadyUIGen.h", "MacShadyUI.h"]
+objc_import ["<Cocoa/Cocoa.h>", "MacShadyUI.h"]
 
 objc_interface [cunit|
 
@@ -34,7 +34,7 @@ objc_interface [cunit|
 jsonForEffect :: IO String
 jsonForEffect = do
   let glslEffect = compileEffect "effect_0" testEffect
-  initMSEffect glslEffect
+  initMSEffect 0 glslEffect
   return $ uiSpecOfGLSLEffect glslEffect
 
 objc_implementation [Typed 'jsonForEffect ] [cunit|
@@ -50,7 +50,8 @@ objc_implementation [Typed 'jsonForEffect ] [cunit|
   NSLog(@"Application did finish launching!");
   self.effects = [[NSMutableDictionary alloc] init];
   typename NSError *e = nil;
-  typename MacShadyUI *shadyUI = [ShadyUIGen uiFromSpec: jsonForEffect() effectIndex: 0 error:&e];
+  typename MacShadyUI *shadyUI =
+    [[MacShadyUI alloc] initWithEffectFilePath:jsonForEffect() effectIndex:0];
   [self.effects setValue:shadyUI forKey:@"effect1" ];
 }
 

@@ -66,13 +66,12 @@ modifyMSPan f s = let pan = msePan s
 
 
 -- Global state
-data MSState = MSState { msEffectIndex  :: MSEffectIndex
-                       , msEffectStates :: Map MSEffectIndex MSEffect  }
+data MSState = MSState { msEffectStates :: Map MSEffectIndex MSEffect  }
 
 -- dun dun dun!
 msStateRef :: IORef (MSState)
 {-# NOINLINE msStateRef #-}
-msStateRef = unsafePerformIO . newIORef $ MSState 0 M.empty
+msStateRef = unsafePerformIO . newIORef $ MSState M.empty
 
 --
 -- [withMSEffect effectIndex io]
@@ -101,14 +100,11 @@ initMSEffectState effectIndex io = do
         msState { msEffectStates = M.insert effectIndex (MSFullEffectState es) (msEffectStates msState)}
     _ -> return ()
 
-initMSEffect :: GLSLEffect -> IO MSEffectIndex
-initMSEffect shadyEffect = do
+initMSEffect :: MSEffectIndex -> GLSLEffect -> IO ()
+initMSEffect i shadyEffect = do
   s <- readIORef msStateRef
-  let i = msEffectIndex s
   writeIORef msStateRef $
-    s { msEffectIndex = i + 1
-      , msEffectStates = M.insert i (MSJustGLSLEffect shadyEffect) (msEffectStates s) }
-  return i
+    s { msEffectStates = M.insert i (MSJustGLSLEffect shadyEffect) (msEffectStates s) }
 
 
 initialMSEffectState :: O.Program
