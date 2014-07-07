@@ -51,6 +51,41 @@ foreign export ccall msKeyUp             :: MSEffectIndex -> CUShort -> CULong -
 foreign export ccall msResize            :: MSEffectIndex -> CInt    -> CInt   -> IO ()
 foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CInt    -> CFloat -> IO ()
 
+--
+-- [mesh], produces an [n] by [n] "degenerate triangle strip" that defines a mesh of
+-- side length [side]. An ASCII representation of a 2x2 mesh is shown below:
+--
+-- The mesh spans from -side/2 to side/2 on the X and Y axes. Its centre is at the origin (0,0).
+--
+-- H--I--J
+-- |\ |\ |
+-- | \| \|
+-- B--D--F
+-- |\ |\ |
+-- | \| \|
+-- A--C--E
+--
+-- Each row is easily defined as a triangle strip. Four degenerate (i.e. zero area)
+-- triangles are added between each row to take us to the beginning of the next row.
+-- In the picture above, if A to J are points then the resulting points are:
+--
+-- ABCDEFFBBHDIFJ
+--
+-- This defines the triangles ABC BCD DEF *EFF* *FFB* *FBB* *BBH* BHD HDI DIF IFJ
+-- The ones marked with asterisks are degenerate. (You can also tell they are degenerate
+-- because of the repeated points.
+--
+mesh :: Float -> Float -> [(Float,Float)]
+mesh n side =
+  concat [ row y ++ degen y | y <- [-h,-h+s..h-s]]
+  where
+    -- s is the size of one one of the squares in the mesh.
+    h = side/2
+    s = side/n
+    row y = concat [ [(x,y),(x, y+s)]  | x <- [-h,-h+s..h] ]
+    -- adds the degenerate points required. "FB" in the example above)
+    degen y = [(h,y+s), (-h,y+s)]
+
 pointsToArrayBuffer :: [(Float, Float)] -> [GLfloat]
 pointsToArrayBuffer = foldl f []
   where

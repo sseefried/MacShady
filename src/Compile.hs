@@ -16,10 +16,7 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.String (fromString)
-
 import qualified Shady.Color as S
-
--- friends
 import qualified Shady.CompileEffect as S
 
 -- FIXME: Don't hard code package database

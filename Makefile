@@ -24,8 +24,6 @@ OBJS = $(SRC)/Main.o \
        $(SRC)/App.o \
        $(SRC)/Hooks.o \
        $(SRC)/ShaderUtil.o \
-       $(SRC)/Shady/CompileEffect.o \
-       $(SRC)/Shady/TestEffect.o \
        $(SRC)/MSState.o \
        $(SRC)/MatrixUtil.o \
        $(SRC)/App_objc.o \
@@ -48,8 +46,6 @@ default: MacShady.app/Contents/MacOS/MacShady
 	$(HC) -c $< $(HCFLAGS)
 
 
-$(SRC)/Compile.o: $(SRC)/Shady/CompileEffect.o
-
 $(SRC)/MacShadyGLView.o: $(SRC)/MacShadyGLView.h     $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
 $(SRC)/ShadyFloatSlider.o: $(SRC)/ShadyFloatSlider.h $(SRC)/MacShadyHooks.h $(SRC)/ShadyControl.h
 
@@ -59,10 +55,10 @@ $(SRC)/MacShadyUIParser.o: $(SRC)/MacShadyUIParser.h
 
 $(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/MacShadyUIParser.o $(SRC)/Compile.o
 
-$(SRC)/Main.o: $(SRC)/Shady/CompileEffect.o
+$(SRC)/Main.o:
 
-$(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/MatrixUtil.o $(SRC)/MSState.o \
-	                    $(SRC)/Shady/CompileEffect.o
+$(SRC)/Hooks.o:       $(SRC)/ShaderUtil.o $(SRC)/MatrixUtil.o $(SRC)/MSState.o
+
 $(SRC)/App.o:         $(SRC)/NSLog.o
 $(SRC)/Main.o:        $(SRC)/App.o $(SRC)/AppDelegate.o
 
@@ -70,7 +66,7 @@ $(SRC)/NSLog_objc.m:       $(SRC)/NSLog.o
 $(SRC)/App_objc.m:         $(SRC)/App.o
 $(SRC)/AppDelegate_objc.m: $(SRC)/AppDelegate.o
 
-$(SRC)/MSState.o: $(SRC)/Shady/CompileEffect.o $(SRC)/CocoaKey.o
+$(SRC)/MSState.o: $(SRC)/CocoaKey.o
 
 MacShady: $(OBJS)
 	$(HC) -o $@ $^ $(LDFLAGS)
