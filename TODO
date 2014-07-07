@@ -1,9 +1,9 @@
 TODO
 
-- keyboard handler not done correctly. Should work based on whether
-  key is down or not. Key gets set "down" when initially pushed
-  and set "up" when it's up. You know it's not working because you can't
-  hold down two keys at the same time.
+- factor out Shady.CompileEffect into shady-graphics because
+  effects need to be built against it.
+
+- check that each effect file exports "macShadyEffect"
 
 - Finish ShadyUIGen
   - cases for int sliders and time
@@ -20,3 +20,4 @@ TODO
 - Add an interface to ShadyFloatSlider.h
 
 - ensure focus is on GLView so that keys immediately work
+

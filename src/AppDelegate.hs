@@ -12,11 +12,14 @@ import Language.C.Inline.ObjC
 
 import           Data.Map (Map)
 import qualified Data.Map as M
+import System.Exit
 
 -- friends
 import MSState
-import Shady.CompileEffect -- FIXME: Remove
-import Shady.TestEffect -- FIXME: Remove
+import Compile -- FIXME: Remove
+import Shady.CompileEffect --FIXME: Remove
+import NSLog (nsLog)
+
 
 objc_import ["<Cocoa/Cocoa.h>", "MacShadyUI.h"]
 
@@ -33,9 +36,17 @@ objc_interface [cunit|
 
 jsonForEffect :: IO String
 jsonForEffect = do
-  let glslEffect = compileEffect "effect_0" testEffect
-  initMSEffect 0 glslEffect
-  return $ uiSpecOfGLSLEffect glslEffect
+  let prefix = "/Users/sseefried/code/mac-shady-project/MacShady/examples/Flower"
+  let hs = prefix ++ ".hs"
+  let obj = prefix ++ ".o"
+  res <- compileAndLoadEffect hs 0
+  case res of
+    Right glslEffect -> do
+      initMSEffect 0 glslEffect
+      return $ uiSpecOfGLSLEffect glslEffect
+    Left  errors     -> do
+      nsLog errors
+      exitWith (ExitFailure 1) -- FIXME:
 
 objc_implementation [Typed 'jsonForEffect ] [cunit|
 

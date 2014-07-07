@@ -22,27 +22,31 @@ import qualified Shady.Color as S
 -- friends
 import qualified Shady.CompileEffect as S
 
+-- FIXME: Don't hard code package database
+packageDB = "/Users/sseefried/code/mac-shady-project/MacShady/.cabal-sandbox/x86_64-osx-ghc-7.6.3-packages.conf.d"
+includeDir = "/Users/sseefried/code/mac-shady-project/MacShady/src"
+
 -- | Compile the effect code. Return either the @Effect@ or a compiler error (Left).
 --
-compileEffect :: FilePath -> IO (Either String S.GLSLEffect)
-compileEffect path = do
+compileAndLoadEffect :: FilePath -> Int -> IO (Either String S.GLSLEffect)
+compileAndLoadEffect path i = do
   (res, name) <- makeEffect path
   case res of
-     MakeSuccess _  objectFile -> loadAndUpdateEffect objectFile name
-     MakeFailure errors        -> return (Left $ formatErrors errors)
+     Right objectFile -> loadAndUpdateEffect objectFile name
+     Left errors        -> return (Left $ formatErrors errors)
   where
     formatErrors errors = concat $ intersperse "\n" errors
-
     --
     -- Load the plugin, get the code, update the effect, unload the effect object.
     --
     loadAndUpdateEffect :: String -> String -> IO (Either String S.GLSLEffect)
     loadAndUpdateEffect objectFile name = do
-      mbStatus <- Plugins.load objectFile [] [] name
+      -- FIXME: DOn't hard code path
+      mbStatus <- Plugins.load objectFile [includeDir] [packageDB] name
       case mbStatus of
         LoadSuccess modul (effect :: S.ShadyEffect S.Color) -> do
           Plugins.unload modul
-          let glslEffect = S.compileEffect name effect
+          let glslEffect = S.compileEffect ("ms" ++ show i) effect
           return (Right glslEffect)
         LoadFailure errors -> return (Left $ formatErrors errors)
 
@@ -50,6 +54,14 @@ filePathToUniquePrefix :: String -> String
 filePathToUniquePrefix = T.unpack . go . T.pack
   where
     go = T.replace "/" "_"
+       . T.replace " " "_s_"
+       . T.replace "-" "_ds_"
+       . T.replace "." "_dt_"
+
+replaceSuffix :: String -> String
+replaceSuffix = T.unpack . go . T.pack
+  where
+    go = T.replace ".hs" ".o"
 
 --
 -- Given the path to a file which contains the Shady effect code,
@@ -61,13 +73,21 @@ filePathToUniquePrefix = T.unpack . go . T.pack
 --
 -- Preconditions: File at [path] exists and is an absolute path name.
 --
-makeEffect :: String -> IO (MakeStatus, String)
+makeEffect :: String -> IO (Either [String] String, String)
 makeEffect path = do
   let (modulExt, modulName, name) = getNames path
-  res <- Plugins.make path [ "-DMODULE_NAME=" ++ modulName
-                           , "-DEFFECT_NAME=" ++ name ]
+  let obj = replaceSuffix path
+  res <- Plugins.build path obj
+    [ "-c",
+      "-i" ++ includeDir,
+      "-DmacShadyEffect=" ++ name,
+      "-package-db " ++ packageDB,
+      "-no-user-package-db"
+    ]
+  if null res
+    then return $ (Right obj, name)
+    else return $ (Left res, name)
 
-  return (res, name)
   where
     getNames :: String -> (String, String, String)
     getNames path =

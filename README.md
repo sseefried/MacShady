@@ -21,6 +21,21 @@ The nib file was generated in Interface Builder in a skeleton project in Xcode
 In order to have the shaders display I had
 
 
+## Design notes
+
+### The Cabal environment used to compile the effects
+
+1. I want this environment to come bundled with MacShady.app
+   i.e. .o and .hi files are in there along with .conf files.
+2. The paths in these are absolute not relative.
+3. This will mean we have to patch the paths when installing the files.
+4. I also probably want to bundle GHC 7.6.3 with the MacShady.app too.
+
+An alternative. You installed MacShady.app and then you run a setup
+file which makes sure that GHC is installed and the right version of Cabal
+and then installs all the required packages.
+
+
 ## Problems overcome
 
 Q1. I had a torus displaying but it looked funny. First there was a circle
@@ -35,3 +50,5 @@ A1. It turned out that I had not enabled a depth buffer in Cocoa's
     I also had to set the right depthFunc using the Haskell OpenGL library.
 
       depthFunc $= Just Less
+
+

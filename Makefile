@@ -57,7 +57,7 @@ $(SRC)/MacShadyUI.o: $(SRC)/MacShadyUI.h  $(SRC)/MacShadyGLView.o $(SRC)/ShadyFl
 	                   $(SRC)/MacShadyUIParser.o
 $(SRC)/MacShadyUIParser.o: $(SRC)/MacShadyUIParser.h
 
-$(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/MacShadyUIParser.o $(SRC)/Shady/TestEffect.o
+$(SRC)/AppDelegate.o: $(SRC)/MSState.o $(SRC)/MacShadyUIParser.o $(SRC)/Compile.o
 
 $(SRC)/Main.o: $(SRC)/Shady/CompileEffect.o
 
