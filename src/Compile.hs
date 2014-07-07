@@ -21,7 +21,6 @@ import qualified Shady.CompileEffect as S
 
 -- FIXME: Don't hard code package database
 packageDB = "/Users/sseefried/code/mac-shady-project/MacShady/.cabal-sandbox/x86_64-osx-ghc-7.6.3-packages.conf.d"
-includeDir = "/Users/sseefried/code/mac-shady-project/MacShady/src"
 
 -- | Compile the effect code. Return either the @Effect@ or a compiler error (Left).
 --
@@ -39,7 +38,7 @@ compileAndLoadEffect path i = do
     loadAndUpdateEffect :: String -> String -> IO (Either String S.GLSLEffect)
     loadAndUpdateEffect objectFile name = do
       -- FIXME: DOn't hard code path
-      mbStatus <- Plugins.load objectFile [includeDir] [packageDB] name
+      mbStatus <- Plugins.load objectFile [] [packageDB] name
       case mbStatus of
         LoadSuccess modul (effect :: S.ShadyEffect S.Color) -> do
           Plugins.unload modul
@@ -76,7 +75,6 @@ makeEffect path = do
   let obj = replaceSuffix path
   res <- Plugins.build path obj
     [ "-c",
-      "-i" ++ includeDir,
       "-DmacShadyEffect=" ++ name,
       "-package-db " ++ packageDB,
       "-no-user-package-db"
