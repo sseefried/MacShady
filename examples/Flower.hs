@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP, ScopedTypeVariables, TypeOperators, FlexibleContexts #-}
 module Flower (macShadyEffect) where
 
-
 import Data.MemoTrie
 import Data.Basis
 import Data.Boolean

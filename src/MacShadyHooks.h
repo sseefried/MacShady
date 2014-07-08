@@ -1,3 +1,4 @@
+char *msCompileAndLoadEffect(int effectIndex, const char *filePath);
 void msInit(int effectIndex);
 
 void msDraw(int effectIndex);

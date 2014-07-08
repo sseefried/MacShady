@@ -6,6 +6,7 @@ import           Foreign.StablePtr
 import           Data.IORef
 import           Foreign.C.Types
 import           Foreign.C.String
+import           Foreign.Marshal.Alloc (free)
 import           Graphics.Rendering.OpenGL hiding (Color)
 -- import           Graphics.Rendering.OpenGL.Raw
 import           Data.ByteString.Char8 (ByteString)
@@ -14,6 +15,7 @@ import           Foreign.Ptr (nullPtr, Ptr)
 import           Foreign.Marshal.Array
 import           Foreign.Storable (sizeOf)
 import           Shady.CompileEffect
+
 import           System.Exit
 import           Data.Matrix (Matrix)
 import qualified Data.Matrix as M
@@ -28,7 +30,7 @@ import NSLog
 import ShaderUtil
 import MSState
 import MatrixUtil
-
+import Compile
 -- The number of triangles in a row of the mesh.
 -- the total mesh size is approximately the square of this number.
 mESH_SIZE :: Float
@@ -38,6 +40,7 @@ vELOCITY_DRAG, vELOCITY_ACCEL :: Float
 vELOCITY_DRAG = 0.03 -- value between 0 and 1. 0 is no drag. 1 is complete drag.
 vELOCITY_ACCEL = 0.002
 
+foreign export ccall msCompileAndLoadEffect :: MSEffectIndex -> CString -> IO CString
 foreign export ccall msInit              :: MSEffectIndex -> IO ()
 foreign export ccall msDraw              :: MSEffectIndex -> IO ()
 foreign export ccall msMouseDown         :: MSEffectIndex -> CFloat  -> CFloat -> IO ()
@@ -50,6 +53,18 @@ foreign export ccall msKeyDown           :: MSEffectIndex -> CUShort -> CULong -
 foreign export ccall msKeyUp             :: MSEffectIndex -> CUShort -> CULong -> IO ()
 foreign export ccall msResize            :: MSEffectIndex -> CInt    -> CInt   -> IO ()
 foreign export ccall msSetFloatUniform   :: MSEffectIndex -> CInt    -> CFloat -> IO ()
+
+
+msCompileAndLoadEffect :: MSEffectIndex -> CString -> IO CString
+msCompileAndLoadEffect i cstr = do
+  filePath <- peekCString cstr
+  res <- compileAndLoadEffect filePath i
+  case res of
+    Right glslEffect -> do
+      initMSEffect 0 glslEffect
+      newCString $ '0' : uiSpecOfGLSLEffect glslEffect
+    Left  errors     -> do
+      newCString $ '1' : errors
 
 --
 -- [mesh], produces an [n] by [n] "degenerate triangle strip" that defines a mesh of

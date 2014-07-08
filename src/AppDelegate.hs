@@ -10,17 +10,6 @@ module AppDelegate (objc_initialise) where
 import Language.C.Quote.ObjC
 import Language.C.Inline.ObjC
 
-import           Data.Map (Map)
-import qualified Data.Map as M
-import System.Exit
-
--- friends
-import MSState
-import Compile -- FIXME: Remove
-import Shady.CompileEffect --FIXME: Remove
-import NSLog (nsLog)
-
-
 objc_import ["<Cocoa/Cocoa.h>", "MacShadyUI.h"]
 
 objc_interface [cunit|
@@ -34,21 +23,12 @@ objc_interface [cunit|
 @end
 |]
 
-jsonForEffect :: IO String
-jsonForEffect = do
-  let prefix = "/Users/sseefried/code/mac-shady-project/MacShady/examples/Flower"
-  let hs = prefix ++ ".hs"
-  let obj = prefix ++ ".o"
-  res <- compileAndLoadEffect hs 0
-  case res of
-    Right glslEffect -> do
-      initMSEffect 0 glslEffect
-      return $ uiSpecOfGLSLEffect glslEffect
-    Left  errors     -> do
-      nsLog errors
-      exitWith (ExitFailure 1) -- FIXME:
 
-objc_implementation [Typed 'jsonForEffect ] [cunit|
+effectFilePath :: String
+effectFilePath = "/Users/sseefried/code/mac-shady-project/MacShady/examples/Flower.hs"
+
+
+objc_implementation [Typed 'effectFilePath] [cunit|
 
 @interface AppDelegate ()
 
@@ -62,7 +42,7 @@ objc_implementation [Typed 'jsonForEffect ] [cunit|
   self.effects = [[NSMutableDictionary alloc] init];
   typename NSError *e = nil;
   typename MacShadyUI *shadyUI =
-    [[MacShadyUI alloc] initWithEffectFilePath:jsonForEffect() effectIndex:0];
+    [[MacShadyUI alloc] initWithEffectFilePath:effectFilePath() effectIndex:0];
   [self.effects setValue:shadyUI forKey:@"effect1" ];
 }
 

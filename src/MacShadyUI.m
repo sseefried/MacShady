@@ -31,13 +31,6 @@
 }
 
 - (id) initWithEffectFilePath:(NSString *)filePath effectIndex:(int)effectIndex {
-  // Create a new dynamic meshCoords with a blue background
-
-  // FIXME: filePath is really JSON at this point
-
-  NSError *error;
-  NSArray *uiSpec = [MacShadyUIParser parseUISpec:filePath error:&error];
-
   CGFloat width = 800, height = 600;
   NSRect frame = NSMakeRect(0, 0, width, height);
 
@@ -50,20 +43,96 @@
 
   if (self) {
     self.effectIndex = effectIndex;
-    self.filePath = @"dummy";
-    [self addControlsFromUISpec:uiSpec];
+    self.filePath = filePath;
+    self.errorLog = [self addErrorLog];
+
+    NSRect bounds = [[NSScreen mainScreen] frame];
+
+    [self makeKeyAndOrderFront:NSApp];
+    [self setFrameTopLeftPoint: NSMakePoint(100,bounds.size.height - 100)];
+
+
+    char *uiSpecCString =
+      msCompileAndLoadEffect(effectIndex, [filePath cStringUsingEncoding: NSUTF8StringEncoding]);
+
+    if (uiSpecCString[0] == '0' /* no errors */) {
+      uiSpecCString++;
+      NSString *uiSpecString = [[NSString alloc] initWithCString:uiSpecCString encoding: NSUTF8StringEncoding];
+
+
+
+      NSError *error;
+      NSArray *uiSpec = [MacShadyUIParser parseUISpec:uiSpecString error:&error];
+      // FIXME: Handle error if it occurs
+
+      [self setErrorLogText:@"Success!"];
+      [self addControlsFromUISpec:uiSpec];
+    } else {
+      uiSpecCString++;
+      [self setErrorLogText:[[NSString alloc] initWithCString:uiSpecCString encoding:NSUTF8StringEncoding]];
+    }
   }
 
   return self;
 }
 
+- (NSTextView *) addErrorLog {
+  // See https://developer.apple.com/library/mac/documentation/TextFonts/Conceptual/
+  //             CocoaTextArchitecture/TextSystemArchitecture/ArchitectureOverview.html#//
+  //             apple_ref/doc/uid/TP40009459-CH7-SW10
+
+
+  // NSTextStorage -> NSLayoutManager -> NSTextContainer -> NSTextView
+
+  self.textStorage = [[NSTextStorage alloc] initWithString:@""];
+
+  NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
+  [self.textStorage addLayoutManager: layoutManager];
+
+  NSTextContainer *textContainer =
+    [[NSTextContainer alloc] initWithContainerSize:self.frame.size];
+
+  [layoutManager addTextContainer:textContainer];
+
+  NSTextView *errorLog = [[NSTextView alloc] initWithFrame:self.frame textContainer:textContainer];
+  errorLog.translatesAutoresizingMaskIntoConstraints = NO;
+  errorLog.editable = NO;
+
+  NSView *view = [self contentView];
+  [view addSubview: errorLog];
+
+  NSDictionary *views  = @{ @"errorLog": errorLog};
+  NSArray *constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[errorLog(>=200)]-|"
+                                               options: 0
+                                               metrics:nil
+                                               views:views];
+  [view addConstraints: constraints];
+  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[errorLog(==80)]-|"
+                                               options: 0
+                                               metrics:nil
+                                               views:views];
+  [view addConstraints: constraints];
+  return errorLog;
+}
+
+- (void) setErrorLogText:(NSString *)message {
+  NSFont             *menlo13  = [NSFont fontWithName:@"Menlo-Regular" size:13];
+  NSAttributedString *attrText =
+    [[NSAttributedString alloc] initWithString:message
+                                attributes:@{ NSFontAttributeName : menlo13 }];
+  NSLog(@"%@", attrText);
+  [self.errorLog.textStorage setAttributedString:attrText];
+//  [self.errorLog scrollRangeToVisible:NSMakeRange([self.errorLog.textStorage length], 0)];
+
+}
+
+
+//
+// Precondition: addErrorLog must have already been called
+//
 - (void) addControlsFromUISpec:(NSArray *)uiSpec {
   NSRect frame = [self frame];
 
-  NSRect bounds = [[NSScreen mainScreen] frame];
-
-  [self makeKeyAndOrderFront:NSApp];
-  [self setFrameTopLeftPoint: NSMakePoint(100,bounds.size.height - 100)];
 
   NSView *view = [self contentView];
 
@@ -83,7 +152,7 @@
     if (lastControl) {
       views = @{ @"current": control, @"last": lastControl };
     } else {
-      views = @{ @"current": control };
+      views = @{ @"current": control, @"errorLog": self.errorLog };
     }
 
     constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[current(>=200)]-|"
@@ -100,7 +169,7 @@
       [view addConstraints: constraints];
 
     } else {
-      constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[current]-|"
+      constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[current(==20)]-[errorLog]"
                                                             options: 0
                                                             metrics:nil
                                                             views:views];
@@ -122,9 +191,9 @@
 
   NSDictionary *dict;
   if (lastControl) {
-     dict = @{ @"glView" : openGLView, @"last": lastControl};
+    dict = @{ @"glView": openGLView, @"errorLog": self.errorLog, @"last": lastControl };
   } else {
-    dict = @{ @"glView" : openGLView };
+    dict = @{ @"glView": openGLView, @"errorLog": self.errorLog };
   }
 
   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[glView]-|"
@@ -139,7 +208,7 @@
                                                    metrics:nil
                                                    views:dict];
   } else {
-   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-|"
+   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-[errorLog]"
                                                    options: 0
                                                    metrics:nil
                                                    views:dict];
