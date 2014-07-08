@@ -9,10 +9,10 @@
 @interface MacShadyUI : NSWindow
 
 // Path to Haskell file
-@property NSString    *filePath;
-@property int          effectIndex;
-@property (nonatomic) NSTextView *errorLog;
-@property             NSTextStorage *textStorage;
+@property NSString      *filePath;
+@property int            effectIndex;
+@property NSTextStorage *textStorage;
+@property NSScrollView  *errorLog;
 
 - (id) initWithEffectFilePath:(NSString *)filePath effectIndex:(int)effectIndex;
 

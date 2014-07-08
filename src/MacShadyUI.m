@@ -44,7 +44,7 @@
   if (self) {
     self.effectIndex = effectIndex;
     self.filePath = filePath;
-    self.errorLog = [self addErrorLog];
+    [self addErrorLog]; // initializes self.textStorage and self.errorLog
 
     NSRect bounds = [[NSScreen mainScreen] frame];
 
@@ -65,7 +65,7 @@
       NSArray *uiSpec = [MacShadyUIParser parseUISpec:uiSpecString error:&error];
       // FIXME: Handle error if it occurs
 
-      [self setErrorLogText:@"Success!"];
+      [self setErrorLogText:@"Effect successfully compiled"];
       [self addControlsFromUISpec:uiSpec];
     } else {
       uiSpecCString++;
@@ -76,27 +76,46 @@
   return self;
 }
 
-- (NSTextView *) addErrorLog {
+- (void) addErrorLog {
   // See https://developer.apple.com/library/mac/documentation/TextFonts/Conceptual/
   //             CocoaTextArchitecture/TextSystemArchitecture/ArchitectureOverview.html#//
   //             apple_ref/doc/uid/TP40009459-CH7-SW10
 
 
-  // NSTextStorage -> NSLayoutManager -> NSTextContainer -> NSTextView
+  // NSTextStorage -> NSLayoutManager -> NSTextContainer -> NSTextView -> NSScrollView
 
-  self.textStorage = [[NSTextStorage alloc] initWithString:@""];
+  NSScrollView *errorLog = [[NSScrollView alloc] initWithFrame:[[self contentView] frame]];
+
+  NSSize contentSize = [errorLog contentSize];
+
+  errorLog.borderType = NSNoBorder;
+  errorLog.hasVerticalScroller = YES;
+  errorLog.hasHorizontalScroller = NO;
+  errorLog.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  errorLog.translatesAutoresizingMaskIntoConstraints = NO;
+
+  NSTextStorage *textStorage = [[NSTextStorage alloc] initWithString:@""];
 
   NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
-  [self.textStorage addLayoutManager: layoutManager];
+  [textStorage addLayoutManager: layoutManager];
 
   NSTextContainer *textContainer =
     [[NSTextContainer alloc] initWithContainerSize:self.frame.size];
 
   [layoutManager addTextContainer:textContainer];
 
-  NSTextView *errorLog = [[NSTextView alloc] initWithFrame:self.frame textContainer:textContainer];
-  errorLog.translatesAutoresizingMaskIntoConstraints = NO;
-  errorLog.editable = NO;
+  NSTextView *textView = [[NSTextView alloc] initWithFrame:self.frame textContainer:textContainer];
+
+  textView.editable = NO;
+  textView.minSize = NSMakeSize(0.0, contentSize.height);
+  textView.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
+  textView.verticallyResizable = YES;
+  textView.horizontallyResizable = NO;
+  textView.autoresizingMask = NSViewWidthSizable;
+  textContainer.containerSize = NSMakeSize(contentSize.width, FLT_MAX);
+  textContainer.widthTracksTextView = YES;
+
+  errorLog.documentView = textView;
 
   NSView *view = [self contentView];
   [view addSubview: errorLog];
@@ -107,12 +126,13 @@
                                                metrics:nil
                                                views:views];
   [view addConstraints: constraints];
-  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[errorLog(==80)]-|"
+  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[errorLog(>=200)]-|"
                                                options: 0
                                                metrics:nil
                                                views:views];
   [view addConstraints: constraints];
-  return errorLog;
+  self.textStorage = textStorage;
+  self.errorLog = errorLog;
 }
 
 - (void) setErrorLogText:(NSString *)message {
@@ -121,9 +141,9 @@
     [[NSAttributedString alloc] initWithString:message
                                 attributes:@{ NSFontAttributeName : menlo13 }];
   NSLog(@"%@", attrText);
-  [self.errorLog.textStorage setAttributedString:attrText];
-//  [self.errorLog scrollRangeToVisible:NSMakeRange([self.errorLog.textStorage length], 0)];
-
+  [self.textStorage setAttributedString:attrText];
+  [self.errorLog.documentView scrollRangeToVisible:NSMakeRange([self.textStorage length], 0)];
+  [self.errorLog flashScrollers];
 }
 
 
@@ -169,7 +189,7 @@
       [view addConstraints: constraints];
 
     } else {
-      constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[current(==20)]-[errorLog]"
+      constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[current(==20)]-[errorLog(==100)]"
                                                             options: 0
                                                             metrics:nil
                                                             views:views];
@@ -203,12 +223,12 @@
   [view addConstraints:constraints];
 
   if (lastControl) {
-    constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-[last(==20)]"
+    constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=50)]-[last(==20)]"
                                                    options: 0
                                                    metrics:nil
                                                    views:dict];
   } else {
-   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=20)]-[errorLog]"
+   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-[glView(>=50)]-[errorLog(==100)]"
                                                    options: 0
                                                    metrics:nil
                                                    views:dict];
