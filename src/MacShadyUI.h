@@ -13,6 +13,8 @@
 @property int            effectIndex;
 @property NSTextStorage *textStorage;
 @property NSScrollView  *errorLog;
+@property NSTimer       *timer;
+@property NSDate        *fileModificationDate;
 
 - (id) initWithEffectFilePath:(NSString *)filePath effectIndex:(int)effectIndex;
 

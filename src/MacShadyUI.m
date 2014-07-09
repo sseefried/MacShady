@@ -44,7 +44,8 @@
   if (self) {
     self.effectIndex = effectIndex;
     self.filePath = filePath;
-    [self addErrorLog]; // initializes self.textStorage and self.errorLog
+    [self addErrorLog]; // initialises self.textStorage and self.errorLog
+    [self initFileWatchTimer]; // intialises self.fileModificationDate and self.timer
 
     NSRect bounds = [[NSScreen mainScreen] frame];
 
@@ -74,6 +75,27 @@
   }
 
   return self;
+}
+
+//
+// Initialises self.fileModificationDate and self.timer
+//
+- (void) initFileWatchTimer {
+    self.fileModificationDate = [self getFileModificationDate];
+
+    self.timer = [NSTimer timerWithTimeInterval:1 // check every x seconds
+                  target:self
+                  selector:@selector(checkFileModified:)
+                  userInfo:nil
+                  repeats:YES];
+
+    [[NSRunLoop currentRunLoop] addTimer:self.timer
+                 forMode:NSDefaultRunLoopMode];
+
+    [[NSRunLoop currentRunLoop] addTimer:self.timer
+                 forMode:NSEventTrackingRunLoopMode];
+
+
 }
 
 - (void) addErrorLog {
@@ -126,7 +148,7 @@
                                                metrics:nil
                                                views:views];
   [view addConstraints: constraints];
-  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[errorLog(>=200)]-|"
+  constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"V:[errorLog(==100)]-|"
                                                options: 0
                                                metrics:nil
                                                views:views];
@@ -135,12 +157,32 @@
   self.errorLog = errorLog;
 }
 
+- (NSDate *) getFileModificationDate {
+  NSError *error = nil;
+  NSDictionary *d = [[NSFileManager defaultManager] attributesOfItemAtPath: self.filePath
+                                                    error:&error];
+  if (!error) {
+    return (NSDate *)[d fileModificationDate];
+  } else {
+    NSLog(@"%@", [error localizedDescription]);
+  }
+  return nil;
+}
+
+
+- (void) checkFileModified:(id )sender {
+  NSDate *date = [self getFileModificationDate];
+  if ([date compare: self.fileModificationDate] == NSOrderedDescending) {
+    self.fileModificationDate = date;
+    NSLog(@"File changed!");
+  }
+}
+
 - (void) setErrorLogText:(NSString *)message {
-  NSFont             *menlo13  = [NSFont fontWithName:@"Menlo-Regular" size:13];
+  NSFont             *menlo13  = [NSFont fontWithName:@"Menlo-Regular" size:11];
   NSAttributedString *attrText =
     [[NSAttributedString alloc] initWithString:message
                                 attributes:@{ NSFontAttributeName : menlo13 }];
-  NSLog(@"%@", attrText);
   [self.textStorage setAttributedString:attrText];
   [self.errorLog.documentView scrollRangeToVisible:NSMakeRange([self.textStorage length], 0)];
   [self.errorLog flashScrollers];
