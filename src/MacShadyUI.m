@@ -52,29 +52,47 @@
     [self makeKeyAndOrderFront:NSApp];
     [self setFrameTopLeftPoint: NSMakePoint(100,bounds.size.height - 100)];
 
-
-    char *uiSpecCString =
-      msCompileAndLoadEffect(effectIndex, [filePath cStringUsingEncoding: NSUTF8StringEncoding]);
-
-    if (uiSpecCString[0] == '0' /* no errors */) {
-      uiSpecCString++;
-      NSString *uiSpecString = [[NSString alloc] initWithCString:uiSpecCString encoding: NSUTF8StringEncoding];
-
-
-
-      NSError *error;
-      NSArray *uiSpec = [MacShadyUIParser parseUISpec:uiSpecString error:&error];
-      // FIXME: Handle error if it occurs
-
-      [self setErrorLogText:@"Effect successfully compiled"];
-      [self addControlsFromUISpec:uiSpec];
-    } else {
-      uiSpecCString++;
-      [self setErrorLogText:[[NSString alloc] initWithCString:uiSpecCString encoding:NSUTF8StringEncoding]];
+    @autoreleasepool {
+      [self compileAndLoadEffect];
     }
   }
-
   return self;
+}
+
+- (void) compileAndLoadEffect {
+  [self makeFirstResponder: nil];
+  if (self.openGLView) {
+    [NSOpenGLContext clearCurrentContext];
+    [self.openGLView clearGLContext];
+    self.openGLView.openGLContext = nil;
+    self.openGLView.pixelFormat = nil;
+    [self.openGLView removeFromSuperview];
+    [self.openGLView.timer invalidate];
+    self.openGLView = nil;
+  }
+
+  if (self.controls) {
+    for (NSControl *control in self.controls) {
+      [control removeFromSuperview];
+    }
+    self.controls = nil;
+  }
+  char *uiSpecCString = msCompileAndLoadEffect(self.effectIndex,
+                           [self.filePath cStringUsingEncoding: NSUTF8StringEncoding]);
+
+  if (uiSpecCString[0] == '0' /* no errors */) {
+    uiSpecCString++;
+    NSString *uiSpecString = [[NSString alloc] initWithCString:uiSpecCString encoding: NSUTF8StringEncoding];
+    NSError *error;
+    NSArray *uiSpec = [MacShadyUIParser parseUISpec:uiSpecString error:&error];
+    // FIXME: Handle error if it occurs
+
+    [self setErrorLogText:@"Effect successfully compiled"];
+    [self addControlsFromUISpec:uiSpec];
+  } else { /* errors */
+    uiSpecCString++;
+    [self setErrorLogText:[[NSString alloc] initWithCString:uiSpecCString encoding:NSUTF8StringEncoding]];
+  }
 }
 
 //
@@ -94,8 +112,6 @@
 
     [[NSRunLoop currentRunLoop] addTimer:self.timer
                  forMode:NSEventTrackingRunLoopMode];
-
-
 }
 
 - (void) addErrorLog {
@@ -174,7 +190,7 @@
   NSDate *date = [self getFileModificationDate];
   if ([date compare: self.fileModificationDate] == NSOrderedDescending) {
     self.fileModificationDate = date;
-    NSLog(@"File changed!");
+    [self compileAndLoadEffect];
   }
 }
 
@@ -201,7 +217,7 @@
   NSControl *lastControl = nil;
   NSArray   *constraints;
 
-  NSMutableArray *controls = [NSMutableArray array];
+  self.controls = [NSMutableArray array];
 
   NSEnumerator *enumerator = [uiSpec reverseObjectEnumerator];
   for (NSDictionary *uiElement in enumerator) {
@@ -239,23 +255,23 @@
 
     }
     lastControl = control;
-    [controls addObject: control];
+    [self.controls addObject: control];
   }
 
-  MacShadyGLView *openGLView =
+  self.openGLView =
     [[MacShadyGLView alloc] initWithFrame: frame
-                              effectIndex: self.effectIndex controls:controls];
-  openGLView.translatesAutoresizingMaskIntoConstraints = NO;
-  // Give the focus to this window
-  [self makeFirstResponder:openGLView];
-  [view addSubview:openGLView];
+                              effectIndex: self.effectIndex controls:self.controls];
 
+  self.openGLView.translatesAutoresizingMaskIntoConstraints = NO;
+  // Give the focus to this window
+  [self makeFirstResponder:self.openGLView];
+  [view addSubview:self.openGLView];
 
   NSDictionary *dict;
   if (lastControl) {
-    dict = @{ @"glView": openGLView, @"errorLog": self.errorLog, @"last": lastControl };
+    dict = @{ @"glView": self.openGLView, @"errorLog": self.errorLog, @"last": lastControl };
   } else {
-    dict = @{ @"glView": openGLView, @"errorLog": self.errorLog };
+    dict = @{ @"glView": self.openGLView, @"errorLog": self.errorLog };
   }
 
   constraints = [NSLayoutConstraint constraintsWithVisualFormat:@"|-[glView]-|"
@@ -277,6 +293,7 @@
   }
   [view addConstraints:constraints];
 }
+
 
 
 @end

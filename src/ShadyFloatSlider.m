@@ -85,6 +85,4 @@
   self.valueLabel.stringValue = [NSString stringWithFormat:@"%.2f", self.slider.doubleValue];
 }
 
-
-
 @end

@@ -9,9 +9,6 @@ module App(main, objc_initialise) where
 import Language.C.Quote.ObjC
 import Language.C.Inline.ObjC
 
--- friends
-import NSLog (nsLog)
-
 objc_import ["<Cocoa/Cocoa.h>"]
 
 main :: IO ()

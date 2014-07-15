@@ -61,6 +61,7 @@ torusUI = do
 
 flowerUI :: UI (ShadyGeometry Color)
 flowerUI = do
+  -- dummy   <- uiSliderF "dummy" 0 1 2 Nothing
   inner   <- uiSliderF "Inner" 0 0.3 1 Nothing
   outer   <- uiSliderF "Outer" 0 0.7 1 Nothing
   periods <- uiSliderF "Periods" 2 3 10 (Just 8)

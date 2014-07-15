@@ -61,9 +61,10 @@ msCompileAndLoadEffect i cstr = do
   res <- compileAndLoadEffect filePath i
   case res of
     Right glslEffect -> do
-      initMSEffect 0 glslEffect
+      initMSEffect i glslEffect
       newCString $ '0' : uiSpecOfGLSLEffect glslEffect
     Left  errors     -> do
+      nsLog $ show errors
       newCString $ '1' : errors
 
 --
@@ -291,8 +292,8 @@ msRightMouseDragged _ x y = nsLog $ "Right Mouse dragged to " ++ show (x,y)
 msKeyDown :: MSEffectIndex -> CUShort -> CULong -> IO ()
 msKeyDown i keyCode modifierFlags = withMSEffectState i $ \s -> do
   let modifiers = modifiersPressed modifierFlags
-  nsLog $ "Keydown: code = " ++ show keyCode ++
-            ", modifiers = " ++ show modifiers
+--  nsLog $ "Keydown: code = " ++ show keyCode ++
+--            ", modifiers = " ++ show modifiers
   return $ s { mseKeyMap = Map.insert (fromIntegral keyCode) modifiers (mseKeyMap s)}
 
 msKeyUp :: MSEffectIndex -> CUShort -> CULong -> IO ()

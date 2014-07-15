@@ -41,9 +41,10 @@ objc_implementation [Typed 'effectFilePath] [cunit|
   NSLog(@"Application did finish launching!");
   self.effects = [[NSMutableDictionary alloc] init];
   typename NSError *e = nil;
+
   typename MacShadyUI *shadyUI =
     [[MacShadyUI alloc] initWithEffectFilePath:effectFilePath() effectIndex:0];
-  [self.effects setValue:shadyUI forKey:@"effect1" ];
+  [self.effects setValue:shadyUI forKey:@"effect0" ];
 }
 
 - (typename IBAction)trackFile:(id)sender {

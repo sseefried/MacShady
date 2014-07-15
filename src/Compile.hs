@@ -29,7 +29,7 @@ compileAndLoadEffect path i = do
   (res, name) <- makeEffect path
   case res of
      Right objectFile -> loadAndUpdateEffect objectFile name
-     Left errors        -> return (Left $ formatErrors errors)
+     Left errors      -> return (Left $ formatErrors errors)
   where
     formatErrors errors = concat $ intersperse "\n" errors
     --
@@ -37,11 +37,10 @@ compileAndLoadEffect path i = do
     --
     loadAndUpdateEffect :: String -> String -> IO (Either String S.GLSLEffect)
     loadAndUpdateEffect objectFile name = do
-      -- FIXME: DOn't hard code path
       mbStatus <- Plugins.load objectFile [] [packageDB] name
       case mbStatus of
         LoadSuccess modul (effect :: S.ShadyEffect S.Color) -> do
-          Plugins.unload modul
+          Plugins.unloadAll modul
           let glslEffect = S.compileEffect ("ms" ++ show i) effect
           return (Right glslEffect)
         LoadFailure errors -> return (Left $ formatErrors errors)
@@ -75,6 +74,7 @@ makeEffect path = do
   let obj = replaceSuffix path
   res <- Plugins.build path obj
     [ "-c",
+      "-cpp",
       "-DmacShadyEffect=" ++ name,
       "-package-db " ++ packageDB,
       "-no-user-package-db"

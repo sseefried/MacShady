@@ -3,9 +3,6 @@
 static const NSTimeInterval  kScheduledTimerInSeconds      = 1.0f/60.0f;
 @implementation MacShadyGLView
 
-BOOL initialised = NO;
-NSTimer            *timer;            // timer to update the view content
-
 
 /*
  * In order for OpenGL's "depth test" to work you have to have a non-zero depth size
@@ -14,30 +11,37 @@ NSTimer            *timer;            // timer to update the view content
  */
 - (id)initWithFrame:(NSRect)frame effectIndex:(int)effectIndex controls:(NSArray *)controls
 {
-  self = [super initWithFrame: frame];
-  if (self) {
-    NSOpenGLPixelFormatAttribute attrs[] =
-      {
-          NSOpenGLPFADoubleBuffer,
-          NSOpenGLPFADepthSize, 8,
-          0
-      };
-
-    NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
-
-    if (!pf)
+  NSOpenGLPixelFormatAttribute attrs[] =
     {
-        NSLog(@"No OpenGL pixel format");
-    }
+        NSOpenGLPFADoubleBuffer,
+        NSOpenGLPFADepthSize, 8,
+        0
+    };
+  NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
+  if (!pf)
+  {
+      NSLog(@"No OpenGL pixel format");
+      return nil;
+  }
 
+  self = [super initWithFrame: frame pixelFormat:pf];
+  if (self) {
+    self.initialised = NO;
     NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
 
     [self setPixelFormat:pf];
     [self setOpenGLContext:context];
 
+
     self.effectIndex = effectIndex;
     self.controls = controls;
+    [context makeCurrentContext];
+  } else {
+    NSLog(@"Couldn't initialise super of MacShadyGLView");
   }
+
+
+
 
   return self;
 }
@@ -89,21 +93,22 @@ NSTimer            *timer;            // timer to update the view content
 
 - (void)initUpdateTimer
 {
-  timer = [NSTimer timerWithTimeInterval:kScheduledTimerInSeconds
+  self.timer = [NSTimer timerWithTimeInterval:kScheduledTimerInSeconds
                 target:self
                 selector:@selector(redraw)
                 userInfo:nil
                  repeats:YES];
 
-  [[NSRunLoop currentRunLoop] addTimer:timer
+  [[NSRunLoop currentRunLoop] addTimer:self.timer
                forMode:NSDefaultRunLoopMode];
 
-  [[NSRunLoop currentRunLoop] addTimer:timer
+  [[NSRunLoop currentRunLoop] addTimer:self.timer
                forMode:NSEventTrackingRunLoopMode];
 
 }
 
 - (void)initialise{
+    NSLog(@"Calling msInit from Objective-C");
     [self initUpdateTimer];
     msInit(self.effectIndex);
     if (self.controls) {
@@ -115,9 +120,10 @@ NSTimer            *timer;            // timer to update the view content
 
 - (void)drawRect:(NSRect)dirtyRect
 {
+  [[self openGLContext] makeCurrentContext];
   [super drawRect:dirtyRect];
-  if (!initialised) {
-    initialised = YES;
+  if (!self.initialised) {
+    self.initialised = YES;
     [self initialise];
   }
   msDraw(self.effectIndex);

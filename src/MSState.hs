@@ -89,12 +89,14 @@ withMSEffectState effectIndex io = do
     _ -> return ()
 
 
+--
 -- For initialising an MSEffectState. Only used in msInit in Hooks module
+--
 initMSEffectState :: MSEffectIndex -> (GLSLEffect -> IO MSEffectState) -> IO ()
 initMSEffectState effectIndex io = do
   msState <- readIORef msStateRef
   case M.lookup effectIndex (msEffectStates msState) of
-    Just (MSJustGLSLEffect effect)  -> do
+    Just (MSJustGLSLEffect effect) -> do
       es <- io effect
       writeIORef msStateRef $
         msState { msEffectStates = M.insert effectIndex (MSFullEffectState es) (msEffectStates msState)}
